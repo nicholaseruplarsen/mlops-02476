@@ -2,6 +2,7 @@
 
 ![arXiv ML](arxiv-ml-landscape.webp)
 
+["Good artists copy, great artists steal - Picasso"](https://www.reddit.com/r/dataisbeautiful/comments/18b1qrd/oc_a_data_map_of_machine_learning_papers_on_arxiv/)
 
 This project develops an end-to-end ML pipeline for classifying scientific research papers into subject categories based on their textual content. The goal is to build a system that can ingest paper metadata and predict relevant research domains, with emphasis on robust MLOps practices including reproducibility, containerization, continuous integration, and cloud deployment.
 
