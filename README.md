@@ -1,6 +1,6 @@
 # arXiv Paper Classifier
 
-![arXiv ML](arxiv-ML-landscape.webp)
+![arXiv ML](arxiv-ml-landscape.webp)
 
 
 This project develops an end-to-end ML pipeline for classifying scientific research papers into subject categories based on their textual content. The goal is to build a system that can ingest paper metadata and predict relevant research domains, with emphasis on robust MLOps practices including reproducibility, containerization, continuous integration, and cloud deployment.
