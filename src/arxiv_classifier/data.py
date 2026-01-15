@@ -7,7 +7,7 @@ from pathlib import Path
 
 import torch
 import typer
-from torch.utils.data import TensorDataset
+from torch.utils.data import Dataset
 
 
 def stream_arxiv_jsonl(jsonl_path: Path, max_samples: int | None = None):
@@ -107,19 +107,55 @@ def preprocess_data(
     print("\nDone!")
 
 
-def arxiv_dataset() -> tuple[TensorDataset, TensorDataset]:
+class ArxivDataset(Dataset):
+    """Dataset wrapper for preprocessed arXiv data."""
+
+    def __init__(self, texts: list[str], labels: torch.Tensor) -> None:
+        self.texts = texts
+        self.labels = labels
+
+    def __len__(self) -> int:
+        return len(self.texts)
+
+    def __getitem__(self, idx: int) -> dict:
+        return {"text": self.texts[idx], "label": self.labels[idx]}
+
+
+def load_label_encoder(path: Path = Path("data/processed/label_encoder.json")) -> dict:
+    """Load label encoder from JSON file."""
+    with open(path) as f:
+        return json.load(f)
+
+
+def get_num_classes(path: Path = Path("data/processed/label_encoder.json")) -> int:
+    """Get number of classes from label encoder."""
+    encoder = load_label_encoder(path)
+    return len(encoder["label_to_id"])
+
+
+def load_split(split: str, data_dir: Path = Path("data/processed")) -> ArxivDataset:
+    """Load a data split as ArxivDataset.
+
+    Args:
+        split: One of 'train', 'val', 'test', 'calibration'
+        data_dir: Directory containing processed .pt files
+    """
+    texts = torch.load(data_dir / f"{split}_texts.pt", weights_only=False)
+    labels = torch.load(data_dir / f"{split}_labels.pt", weights_only=True)
+    return ArxivDataset(texts, labels)
+
+
+def arxiv_dataset() -> tuple[tuple, tuple]:
     """Return train and test datasets for arXiv classification.
 
     Note: Returns raw text strings, not tokenized. Tokenization happens in training.
     """
-    train_texts = torch.load("data/processed/train_texts.pt")
-    train_labels = torch.load("data/processed/train_labels.pt")
-    test_texts = torch.load("data/processed/test_texts.pt")
-    test_labels = torch.load("data/processed/test_labels.pt")
+    train_texts = torch.load("data/processed/train_texts.pt", weights_only=False)
+    train_labels = torch.load("data/processed/train_labels.pt", weights_only=True)
+    test_texts = torch.load("data/processed/test_texts.pt", weights_only=False)
+    test_labels = torch.load("data/processed/test_labels.pt", weights_only=True)
 
-    # TensorDataset expects tensors, but we have strings for texts
-    # Return as simple tuple datasets instead
-    return (train_texts, train_labels), (test_texts, test_labels)  # type: ignore
+    return (train_texts, train_labels), (test_texts, test_labels)
 
 
 if __name__ == "__main__":
