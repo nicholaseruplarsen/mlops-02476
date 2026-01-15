@@ -2,12 +2,39 @@
 
 import json
 import random
+import subprocess
+import zipfile
 from collections import Counter
 from pathlib import Path
 
 import torch
 import typer
 from torch.utils.data import Dataset
+
+KAGGLE_DATASET_URL = "https://www.kaggle.com/api/v1/datasets/download/Cornell-University/arxiv"
+
+
+def download_raw_data(raw_dir: Path = Path("data/raw")) -> Path:
+    """Download arXiv dataset from Kaggle into data/raw/. Returns path to JSON file."""
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    json_path = raw_dir / "arxiv-metadata-oai-snapshot.json"
+
+    if json_path.exists():
+        print(f"Dataset already exists at: {json_path}")
+        return json_path
+
+    zip_path = raw_dir / "arxiv.zip"
+
+    print("Downloading arXiv dataset from Kaggle...")
+    subprocess.run(["curl", "-L", "-o", str(zip_path), KAGGLE_DATASET_URL], check=True)
+
+    print("Extracting dataset...")
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        zf.extractall(raw_dir)
+
+    zip_path.unlink()  # Remove zip after extraction
+    print(f"Dataset available at: {json_path}")
+    return json_path
 
 
 def stream_arxiv_jsonl(jsonl_path: Path, max_samples: int | None = None):
@@ -44,12 +71,20 @@ def stream_arxiv_jsonl(jsonl_path: Path, max_samples: int | None = None):
 
 
 def preprocess_data(
-    raw_path: Path,
-    output_folder: Path,
+    raw_path: Path | None = None,
+    output_folder: Path = Path("data/processed"),
     max_samples: int = 100_000,
     seed: int = 42,
 ) -> None:
-    """Preprocess arXiv JSONL into train/val/test/calibration .pt files."""
+    """
+    Preprocess arXiv JSON into train/val/test/calibration .pt files.
+
+    If raw_path is not provided or doesn't exist, downloads from Kaggle.
+    """
+    # Auto-download from Kaggle if raw data not provided
+    if raw_path is None or not raw_path.exists():
+        raw_path = download_raw_data()
+
     random.seed(seed)
     output_folder = Path(output_folder)
     output_folder.mkdir(parents=True, exist_ok=True)
@@ -158,5 +193,15 @@ def arxiv_dataset() -> tuple[tuple, tuple]:
     return (train_texts, train_labels), (test_texts, test_labels)
 
 
+def main(
+    raw_path: Path | None = typer.Argument(None, help="Path to raw JSONL. Downloads from Kaggle if not provided."),
+    output_folder: Path = typer.Option(Path("data/processed"), help="Output directory for processed files"),
+    max_samples: int = typer.Option(100_000, help="Maximum number of samples to process"),
+    seed: int = typer.Option(42, help="Random seed for reproducibility"),
+) -> None:
+    """Preprocess arXiv data for classification."""
+    preprocess_data(raw_path, output_folder, max_samples, seed)
+
+
 if __name__ == "__main__":
-    typer.run(preprocess_data)
+    typer.run(main)

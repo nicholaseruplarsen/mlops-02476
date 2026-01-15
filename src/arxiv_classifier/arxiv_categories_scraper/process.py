@@ -1,13 +1,17 @@
-"""Process raw arXiv classes into structured JSON."""
+"""Process raw arXiv categories scraped from arxiv.org into structured JSON."""
 
 import json
 import re
 from pathlib import Path
 
+MODULE_DIR = Path(__file__).parent
+RAW_FILE = MODULE_DIR / "arxiv_categories_scraped.txt"
+OUTPUT_FILE = MODULE_DIR / "arxiv_categories.json"
 
-def process_classes(input_path: Path, output_path: Path) -> None:
-    """Parse classes_raw.txt and output as JSON dictionary."""
-    classes = {}
+
+def process_categories(input_path: Path = RAW_FILE, output_path: Path = OUTPUT_FILE) -> None:
+    """Parse arxiv_categories_scraped.txt and output as JSON dictionary."""
+    categories = {}
 
     with open(input_path) as f:
         lines = f.read().strip().split("\n")
@@ -42,20 +46,16 @@ def process_classes(input_path: Path, output_path: Path) -> None:
                 description = next_line
                 i += 1
 
-        classes[code] = {"name": name, "field": field, "description": description}
+        categories[code] = {"name": name, "field": field, "description": description}
 
         i += 1
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w") as f:
-        json.dump(classes, f, indent=2)
+        json.dump(categories, f, indent=2)
 
-    print(f"Processed {len(classes)} classes to {output_path}")
+    print(f"Processed {len(categories)} categories to {output_path}")
 
 
 if __name__ == "__main__":
-    root = Path(__file__).parent.parent.parent
-    process_classes(
-        root / "data" / "raw" / "classes_raw.txt",
-        root / "data" / "processed" / "classes.json",
-    )
+    process_categories()
