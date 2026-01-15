@@ -26,7 +26,7 @@ def stream_arxiv_jsonl(jsonl_path: Path, max_samples: int | None = None):
             categories = paper.get("categories", "").strip()
 
             # Skip invalid data
-            if not title or not abstract or not categories: 
+            if not title or not abstract or not categories:
                 continue
 
             # Clean whitespace
@@ -80,9 +80,9 @@ def preprocess_data(
 
     splits = {
         "train": samples[:n_train],
-        "val": samples[n_train:n_train + n_val],
-        "test": samples[n_train + n_val:n_train + n_val + n_test],
-        "calibration": samples[n_train + n_val + n_test:],
+        "val": samples[n_train : n_train + n_val],
+        "test": samples[n_train + n_val : n_train + n_val + n_test],
+        "calibration": samples[n_train + n_val + n_test :],
     }
 
     print(f"\nSplit sizes:")
