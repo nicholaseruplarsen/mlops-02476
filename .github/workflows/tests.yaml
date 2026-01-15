@@ -28,6 +28,22 @@ jobs:
       - name: Install dependencies
         run: uv sync --group dev
 
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Cache DVC data
+        uses: actions/cache@v4
+        with:
+          path: |
+            .dvc/cache
+            data/
+          key: dvc-${{ hashFiles('data.dvc') }}
+
+      - name: Pull DVC data
+        run: uv run dvc pull --no-run-cache
+
       - name: Run tests & coverage
         run: |
           uv run coverage run -m pytest tests/
