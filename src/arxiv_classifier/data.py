@@ -72,7 +72,7 @@ def preprocess_data(
     label_to_id = {label: idx for idx, label in enumerate(unique_categories)}
     id_to_label = {idx: label for label, idx in label_to_id.items()}
 
-    # Split: 70% train, 10% val, 10% test, 10% calibration
+    # Split: 70% train, 10% val, 10% test, 10% calibration (calibration for conformal inference)
     n = len(samples)
     n_train = int(n * 0.7)
     n_val = int(n * 0.1)
@@ -107,7 +107,7 @@ def preprocess_data(
     print("\nDone!")
 
 
-def arxiv() -> tuple[TensorDataset, TensorDataset]:
+def arxiv_dataset() -> tuple[TensorDataset, TensorDataset]:
     """Return train and test datasets for arXiv classification.
 
     Note: Returns raw text strings, not tokenized. Tokenization happens in training.
@@ -119,7 +119,7 @@ def arxiv() -> tuple[TensorDataset, TensorDataset]:
 
     # TensorDataset expects tensors, but we have strings for texts
     # Return as simple tuple datasets instead
-    return (train_texts, train_labels), (test_texts, test_labels)
+    return (train_texts, train_labels), (test_texts, test_labels) # type: ignore
 
 
 if __name__ == "__main__":
