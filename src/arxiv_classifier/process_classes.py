@@ -16,23 +16,33 @@ def process_classes(input_path: Path, output_path: Path) -> None:
     while i < len(lines):
         line = lines[i].strip()
 
-        # Match pattern: code (Name) e.g. "cs.AI (Artificial Intelligence)"
-        match = re.match(r"^([a-z-]+)\.([A-Z]{2}(?:-[a-z]+)?)\s+\((.+)\)$", line)
+        # Match pattern with dot: "cs.AI" or "physics.acc-ph"
+        match = re.match(r"^([a-z-]+)\.([A-Za-z-]+)\s+\((.+)\)$", line)
+        # Match pattern without dot: "quant-ph", "hep-th", etc.
+        match_nodot = re.match(r"^([a-z]+-[a-z]+)\s+\((.+)\)$", line)
+
         if match:
             field = match.group(1)
             subcode = match.group(2)
             code = f"{field}.{subcode}"
             name = match.group(3)
+        elif match_nodot:
+            code = match_nodot.group(1)
+            field = code  # Use full code as field
+            name = match_nodot.group(2)
+        else:
+            i += 1
+            continue
 
-            # Next line is description (if not empty and not another code)
-            description = ""
-            if i + 1 < len(lines):
-                next_line = lines[i + 1].strip()
-                if next_line and not re.match(r"^[a-z-]+\.[A-Z]{2}", next_line):
-                    description = next_line
-                    i += 1
+        # Next line is description (if not empty and not another code)
+        description = ""
+        if i + 1 < len(lines):
+            next_line = lines[i + 1].strip()
+            if next_line and not re.match(r"^[a-z-]+[\.-][A-Za-z-]+\s+\(", next_line):
+                description = next_line
+                i += 1
 
-            classes[code] = {"name": name, "field": field, "description": description}
+        classes[code] = {"name": name, "field": field, "description": description}
 
         i += 1
 
