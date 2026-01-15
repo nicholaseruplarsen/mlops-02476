@@ -45,7 +45,7 @@ def train_epoch(
 
     pbar = ProgressBar(
         total=len(dataloader.dataset),
-        desc=f"E{epoch+1}/{epochs}",
+        desc=f"E{epoch + 1}/{epochs}",
         device=DEVICE,
         batch_size=dataloader.batch_size,
     )

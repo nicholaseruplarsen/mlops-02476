@@ -90,9 +90,7 @@ def main(
 
     # Use same split as training
     generator = torch.Generator().manual_seed(seed)
-    _, val_dataset = torch.utils.data.random_split(
-        dataset, [train_size, val_size], generator=generator
-    )
+    _, val_dataset = torch.utils.data.random_split(dataset, [train_size, val_size], generator=generator)
 
     print(f"Validation set: {len(val_dataset)} samples")
     print(f"Showing {num_samples} random samples:")
@@ -119,7 +117,7 @@ def main(
                 correct_count += 1
 
     print(f"\n{Colors.GRAY}{'─' * 80}{Colors.RESET}")
-    print(f"Exact match accuracy: {correct_count}/{num_samples} ({correct_count/num_samples:.0%})")
+    print(f"Exact match accuracy: {correct_count}/{num_samples} ({correct_count / num_samples:.0%})")
 
 
 if __name__ == "__main__":

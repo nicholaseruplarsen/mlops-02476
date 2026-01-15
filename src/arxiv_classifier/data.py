@@ -10,7 +10,9 @@ from arxiv_classifier.model import CATEGORY_TO_IDX, NUM_CATEGORIES
 
 app = typer.Typer()
 
-ARXIV_DATASET_PATH = Path.home() / ".cache/kagglehub/datasets/Cornell-University/arxiv/versions/268/arxiv-metadata-oai-snapshot.json"
+ARXIV_DATASET_PATH = (
+    Path.home() / ".cache/kagglehub/datasets/Cornell-University/arxiv/versions/268/arxiv-metadata-oai-snapshot.json"
+)
 
 
 @app.command()

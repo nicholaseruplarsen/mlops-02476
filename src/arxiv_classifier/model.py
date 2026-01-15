@@ -4,21 +4,21 @@ from torch import nn
 
 # Main arxiv category groups
 CATEGORIES = [
-    "astro-ph",   # Astrophysics
-    "cond-mat",   # Condensed Matter
-    "cs",         # Computer Science
-    "econ",       # Economics
-    "eess",       # Electrical Engineering and Systems Science
-    "gr-qc",      # General Relativity and Quantum Cosmology
-    "hep",        # High Energy Physics (hep-th, hep-ph, hep-ex, hep-lat)
-    "math",       # Mathematics
-    "nlin",       # Nonlinear Sciences
-    "nucl",       # Nuclear (nucl-th, nucl-ex)
-    "physics",    # Physics (general)
-    "q-bio",      # Quantitative Biology
-    "q-fin",      # Quantitative Finance
-    "quant-ph",   # Quantum Physics
-    "stat",       # Statistics
+    "astro-ph",  # Astrophysics
+    "cond-mat",  # Condensed Matter
+    "cs",  # Computer Science
+    "econ",  # Economics
+    "eess",  # Electrical Engineering and Systems Science
+    "gr-qc",  # General Relativity and Quantum Cosmology
+    "hep",  # High Energy Physics (hep-th, hep-ph, hep-ex, hep-lat)
+    "math",  # Mathematics
+    "nlin",  # Nonlinear Sciences
+    "nucl",  # Nuclear (nucl-th, nucl-ex)
+    "physics",  # Physics (general)
+    "q-bio",  # Quantitative Biology
+    "q-fin",  # Quantitative Finance
+    "quant-ph",  # Quantum Physics
+    "stat",  # Statistics
 ]
 NUM_CATEGORIES = len(CATEGORIES)
 CATEGORY_TO_IDX = {cat: idx for idx, cat in enumerate(CATEGORIES)}
