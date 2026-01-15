@@ -177,4 +177,10 @@ cython_debug/
 #.idea/
 /data
 
+# Trained models (too large for git)
+/models
+
+# Large binary files
+*.psd
+
 CLAUDE.md

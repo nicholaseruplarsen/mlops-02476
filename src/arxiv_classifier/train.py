@@ -43,11 +43,12 @@ def train_epoch(
     """Train for one epoch, return average loss."""
     model.train()
 
+    assert dataloader.dataset is not None
     pbar = ProgressBar(
-        total=len(dataloader.dataset),
+        total=len(dataloader.dataset),  # type: ignore[arg-type]
         desc=f"E{epoch + 1}/{epochs}",
         device=DEVICE,
-        batch_size=dataloader.batch_size,
+        batch_size=dataloader.batch_size or BATCH_SIZE,
     )
 
     for batch in dataloader:
@@ -75,11 +76,12 @@ def validate(
     """Validate model, return average loss and accuracy."""
     model.eval()
 
+    assert dataloader.dataset is not None
     pbar = ProgressBar(
-        total=len(dataloader.dataset),
+        total=len(dataloader.dataset),  # type: ignore[arg-type]
         desc="Valid",
         device=DEVICE,
-        batch_size=dataloader.batch_size,
+        batch_size=dataloader.batch_size or BATCH_SIZE,
         is_eval=True,
     )
 
@@ -140,7 +142,7 @@ def train(
     # Load validation set
     val_dataset = load_split("val")
 
-    train_size = len(dataset)
+    train_size = len(dataset)  # type: ignore
     val_size = len(val_dataset)
 
     # DataLoader kwargs for speed
@@ -169,6 +171,7 @@ def train(
         val_loss, val_acc = validate(model, val_loader, criterion)
 
         improved = val_loss < best_val_loss
+
         if improved:
             best_val_loss = val_loss
             torch.save(model.state_dict(), output_dir / "best_model.pt")

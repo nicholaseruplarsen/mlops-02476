@@ -65,4 +65,5 @@ explicit = true
 line-length = 120
 
 [tool.coverage.run]
+source = ["src/arxiv_classifier"]
 omit = ["tests/*"]

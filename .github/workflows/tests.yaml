@@ -42,9 +42,9 @@ jobs:
           key: dvc-${{ hashFiles('data.dvc') }}
 
       - name: Pull DVC data
-        run: uv run dvc pull --no-run-cache
+        run: uv run dvc pull --no-run-cache --force
 
       - name: Run tests & coverage
         run: |
           uv run coverage run -m pytest tests/
-          uv run coverage report -m
+          uv run coverage report -m --fail-under=20

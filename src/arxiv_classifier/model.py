@@ -30,7 +30,7 @@ class ArxivClassifier(nn.Module):
             param.requires_grad = False
 
         self.classifier = nn.Sequential(
-            nn.Linear(self.encoder_dim, hidden_dim),
+            nn.Linear(self.encoder_dim, hidden_dim),  # type: ignore
             nn.ReLU(),
             nn.Dropout(dropout),
             nn.Linear(hidden_dim, num_classes),
@@ -47,8 +47,9 @@ class ArxivClassifier(nn.Module):
         """
         with torch.no_grad():
             embeddings = self.encoder.encode(texts, convert_to_tensor=True)
-        # Clone to escape inference mode so gradients can flow through classifier
-        return self.classifier(embeddings.clone())
+        # Move to classifier's device and clone to escape inference mode
+        device = next(self.classifier.parameters()).device
+        return self.classifier(embeddings.clone().to(device))
 
     def predict(self, texts: list[str]) -> torch.Tensor:
         """Get predicted class indices.
