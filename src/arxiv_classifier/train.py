@@ -111,6 +111,7 @@ def validate(
 
 def train(
     dataset: Dataset | None = None,
+    val_dataset: Dataset | None = None,
     epochs: int = EPOCHS,
     batch_size: int = BATCH_SIZE,
     learning_rate: float = LEARNING_RATE,
@@ -122,6 +123,7 @@ def train(
 
     Args:
         dataset: Dataset to train on. If None, loads from data/processed/.
+        val_dataset: Validation dataset. If None, loads from data/processed/.
         epochs: Number of training epochs
         batch_size: Batch size for training
         learning_rate: Learning rate for optimizer
@@ -139,8 +141,9 @@ def train(
     if dataset is None:
         dataset = load_split("train")
 
-    # Load validation set
-    val_dataset = load_split("val")
+    # Load validation set if none provided
+    if val_dataset is None:
+        val_dataset = load_split("val")
 
     train_size = len(dataset)  # type: ignore
     val_size = len(val_dataset)
