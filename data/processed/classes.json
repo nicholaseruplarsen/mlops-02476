@@ -137,7 +137,7 @@
   "cs.NA": {
     "name": "Numerical Analysis",
     "field": "cs",
-    "description": ""
+    "description": "cs.NA is an alias for math.NA. Roughly includes material in ACM Subject Class G.1."
   },
   "cs.NE": {
     "name": "Neural and Evolutionary Computing",
@@ -197,7 +197,7 @@
   "cs.SY": {
     "name": "Systems and Control",
     "field": "cs",
-    "description": ""
+    "description": "cs.SY is an alias for eess.SY. This section includes theoretical and experimental research covering all facets of automatic control systems. The section is focused on methods of control system analysis and design using tools of modeling, simulation and optimization. Specific areas of research include nonlinear, distributed, adaptive, stochastic and robust control in addition to hybrid and discrete event systems. Application areas include automotive and aerospace control systems, network control, biological systems, multiagent and cooperative control, robotics, reinforcement learning, sensor networks, control of cyber-physical and energy-related systems, and control of computing systems."
   },
   "econ.EM": {
     "name": "Econometrics",
@@ -317,7 +317,7 @@
   "math.IT": {
     "name": "Information Theory",
     "field": "math",
-    "description": ""
+    "description": "math.IT is an alias for cs.IT. Covers theoretical and experimental aspects of information theory and coding."
   },
   "math.KT": {
     "name": "K-Theory and Homology",
@@ -337,7 +337,7 @@
   "math.MP": {
     "name": "Mathematical Physics",
     "field": "math",
-    "description": ""
+    "description": "math.MP is an alias for math-ph. Articles in this category focus on areas of research that illustrate the application of mathematics to problems in physics, develop mathematical methods for such applications, or provide mathematically rigorous formulations of existing physical theories. Submissions to math-ph should be of interest to both physically oriented mathematicians and mathematically oriented physicists; submissions which are primarily of interest to theoretical physicists or to mathematicians should probably be directed to the respective physics/math categories"
   },
   "math.NA": {
     "name": "Numerical Analysis",
@@ -424,6 +424,81 @@
     "field": "astro-ph",
     "description": "White dwarfs, brown dwarfs, cataclysmic variables. Star formation and protostellar systems, stellar astrobiology, binary and multiple systems of stars, stellar evolution and structure, coronas. Central stars of planetary nebulae. Helioseismology, solar neutrinos, production and detection of gravitational radiation from stellar systems"
   },
+  "cond-mat.dis-nn": {
+    "name": "Disordered Systems and Neural Networks",
+    "field": "cond-mat",
+    "description": "Glasses and spin glasses; properties of random, aperiodic and quasiperiodic systems; transport in disordered media; localization; phenomena mediated by defects and disorder; neural networks"
+  },
+  "cond-mat.mes-hall": {
+    "name": "Mesoscale and Nanoscale Physics",
+    "field": "cond-mat",
+    "description": "Semiconducting nanostructures: quantum dots, wires, and wells. Single electronics, spintronics, 2d electron gases, quantum Hall effect, nanotubes, graphene, plasmonic nanostructures"
+  },
+  "cond-mat.mtrl-sci": {
+    "name": "Materials Science",
+    "field": "cond-mat",
+    "description": "Techniques, synthesis, characterization, structure. Structural phase transitions, mechanical properties, phonons. Defects, adsorbates, interfaces"
+  },
+  "cond-mat.other": {
+    "name": "Other Condensed Matter",
+    "field": "cond-mat",
+    "description": "Work in condensed matter that does not fit into the other cond-mat classifications"
+  },
+  "cond-mat.quant-gas": {
+    "name": "Quantum Gases",
+    "field": "cond-mat",
+    "description": "Ultracold atomic and molecular gases, Bose-Einstein condensation, Feshbach resonances, spinor condensates, optical lattices, quantum simulation with cold atoms and molecules, macroscopic interference phenomena"
+  },
+  "cond-mat.soft": {
+    "name": "Soft Condensed Matter",
+    "field": "cond-mat",
+    "description": "Membranes, polymers, liquid crystals, glasses, colloids, granular matter"
+  },
+  "cond-mat.stat-mech": {
+    "name": "Statistical Mechanics",
+    "field": "cond-mat",
+    "description": "Phase transitions, thermodynamics, field theory, non-equilibrium phenomena, renormalization group and scaling, integrable models, turbulence"
+  },
+  "cond-mat.str-el": {
+    "name": "Strongly Correlated Electrons",
+    "field": "cond-mat",
+    "description": "Quantum magnetism, non-Fermi liquids, spin liquids, quantum criticality, charge density waves, metal-insulator transitions"
+  },
+  "cond-mat.supr-con": {
+    "name": "Superconductivity",
+    "field": "cond-mat",
+    "description": "Superconductivity: theory, models, experiment. Superflow in helium"
+  },
+  "gr-qc": {
+    "name": "General Relativity and Quantum Cosmology",
+    "field": "gr-qc",
+    "description": "General Relativity and Quantum Cosmology Areas of gravitational physics, including experiments and observations related to the detection and interpretation of gravitational waves, experimental tests of gravitational theories, computational general relativity, relativistic astrophysics, solutions to Einstein's equations and their properties, alternative theories of gravity, classical and quantum cosmology, and quantum gravity."
+  },
+  "hep-ex": {
+    "name": "High Energy Physics - Experiment",
+    "field": "hep-ex",
+    "description": "Results from high-energy/particle physics experiments and prospects for future experimental results, including tests of the standard model, measurements of standard model parameters, searches for physics beyond the standard model, and astroparticle physics experimental results. Does not include: detectors and instrumentation nor analysis methods to conduct experiments."
+  },
+  "hep-lat": {
+    "name": "High Energy Physics - Lattice",
+    "field": "hep-lat",
+    "description": "Lattice field theory. Phenomenology from lattice field theory. Algorithms for lattice field theory. Hardware for lattice field theory."
+  },
+  "hep-ph": {
+    "name": "High Energy Physics - Phenomenology",
+    "field": "hep-ph",
+    "description": "Theoretical particle physics and its interrelation with experiment. Prediction of particle physics observables: models, effective field theories, calculation techniques. Particle physics: analysis of theory through experimental results."
+  },
+  "hep-th": {
+    "name": "High Energy Physics - Theory",
+    "field": "hep-th",
+    "description": "Formal aspects of quantum field theory. String theory, supersymmetry and supergravity."
+  },
+  "math-ph": {
+    "name": "Mathematical Physics",
+    "field": "math-ph",
+    "description": "Articles in this category focus on areas of research that illustrate the application of mathematics to problems in physics, develop mathematical methods for such applications, or provide mathematically rigorous formulations of existing physical theories. Submissions to math-ph should be of interest to both physically oriented mathematicians and mathematically oriented physicists; submissions which are primarily of interest to theoretical physicists or to mathematicians should probably be directed to the respective physics/math categories"
+  },
   "nlin.AO": {
     "name": "Adaptation and Self-Organizing Systems",
     "field": "nlin",
@@ -448,6 +523,131 @@
     "name": "Exactly Solvable and Integrable Systems",
     "field": "nlin",
     "description": "Exactly solvable systems, integrable PDEs, integrable ODEs, Painleve analysis, integrable discrete maps, solvable lattice models, integrable quantum systems"
+  },
+  "nucl-ex": {
+    "name": "Nuclear Experiment",
+    "field": "nucl-ex",
+    "description": "Nuclear Experiment Results from experimental nuclear physics including the areas of fundamental interactions, measurements at low- and medium-energy, as well as relativistic heavy-ion collisions. Does not include: detectors and instrumentation nor analysis methods to conduct experiments; descriptions of experimental programs (present or future); comments on published results"
+  },
+  "nucl-th": {
+    "name": "Nuclear Theory",
+    "field": "nucl-th",
+    "description": "Nuclear Theory Theory of nuclear structure covering wide area from models of hadron structure to neutron stars. Nuclear equation of states at different external conditions. Theory of nuclear reactions including heavy-ion reactions at low and high energies. It does not include problems of data analysis, physics of nuclear reactors, problems of safety, reactor construction"
+  },
+  "physics.acc-ph": {
+    "name": "Accelerator Physics",
+    "field": "physics",
+    "description": "Accelerator theory and simulation. Accelerator technology. Accelerator experiments. Beam Physics. Accelerator design and optimization. Advanced accelerator concepts. Radiation sources including synchrotron light sources and free electron lasers. Applications of accelerators."
+  },
+  "physics.ao-ph": {
+    "name": "Atmospheric and Oceanic Physics",
+    "field": "physics",
+    "description": "Atmospheric and oceanic physics and physical chemistry, biogeophysics, and climate science"
+  },
+  "physics.app-ph": {
+    "name": "Applied Physics",
+    "field": "physics",
+    "description": "Applications of physics to new technology, including electronic devices, optics, photonics, microwaves, spintronics, advanced materials, metamaterials, nanotechnology, and energy sciences."
+  },
+  "physics.atm-clus": {
+    "name": "Atomic and Molecular Clusters",
+    "field": "physics",
+    "description": "Atomic and molecular clusters, nanoparticles: geometric, electronic, optical, chemical, magnetic properties, shell structure, phase transitions, optical spectroscopy, mass spectrometry, photoelectron spectroscopy, ionization potential, electron affinity, interaction with intense light pulses, electron diffraction, light scattering, ab initio calculations, DFT theory, fragmentation, Coulomb explosion, hydrodynamic expansion."
+  },
+  "physics.atom-ph": {
+    "name": "Atomic Physics",
+    "field": "physics",
+    "description": "Atomic and molecular structure, spectra, collisions, and data. Atoms and molecules in external fields. Molecular dynamics and coherent and optical control. Cold atoms and molecules. Cold collisions. Optical lattices."
+  },
+  "physics.bio-ph": {
+    "name": "Biological Physics",
+    "field": "physics",
+    "description": "Molecular biophysics, cellular biophysics, neurological biophysics, membrane biophysics, single-molecule biophysics, ecological biophysics, quantum phenomena in biological systems (quantum biophysics), theoretical biophysics, molecular dynamics/modeling and simulation, game theory, biomechanics, bioinformatics, microorganisms, virology, evolution, biophysical methods."
+  },
+  "physics.chem-ph": {
+    "name": "Chemical Physics",
+    "field": "physics",
+    "description": "Experimental, computational, and theoretical physics of atoms, molecules, and clusters - Classical and quantum description of states, processes, and dynamics; spectroscopy, electronic structure, conformations, reactions, interactions, and phases. Chemical thermodynamics. Disperse systems. High pressure chemistry. Solid state chemistry. Surface and interface chemistry."
+  },
+  "physics.class-ph": {
+    "name": "Classical Physics",
+    "field": "physics",
+    "description": "Newtonian and relativistic dynamics; many particle systems; planetary motions; chaos in classical dynamics. Maxwell's equations and dynamics of charged systems and electromagnetic forces in materials. Vibrating systems such as membranes and cantilevers; optomechanics. Classical waves, including acoustics and elasticity; physics of music and musical instruments. Classical thermodynamics and heat flow problems."
+  },
+  "physics.comp-ph": {
+    "name": "Computational Physics",
+    "field": "physics",
+    "description": "All aspects of computational science applied to physics."
+  },
+  "physics.data-an": {
+    "name": "Data Analysis, Statistics and Probability",
+    "field": "physics",
+    "description": "Methods, software and hardware for physics data analysis: data processing and storage; measurement methodology; statistical and mathematical aspects such as parametrization and uncertainties."
+  },
+  "physics.ed-ph": {
+    "name": "Physics Education",
+    "field": "physics",
+    "description": "Report of results of a research study, laboratory experience, assessment or classroom practice that represents a way to improve teaching and learning in physics. Also, report on misconceptions of students, textbook errors, and other similar information relative to promoting physics understanding."
+  },
+  "physics.flu-dyn": {
+    "name": "Fluid Dynamics",
+    "field": "physics",
+    "description": "Turbulence, instabilities, incompressible/compressible flows, reacting flows. Aero/hydrodynamics, fluid-structure interactions, acoustics. Biological fluid dynamics, micro/nanofluidics, interfacial phenomena. Complex fluids, suspensions and granular flows, porous media flows. Geophysical flows, thermoconvective and stratified flows. Mathematical and computational methods for fluid dynamics, fluid flow models, experimental techniques."
+  },
+  "physics.gen-ph": {
+    "name": "General Physics",
+    "field": "physics",
+    "description": "Description coming soon"
+  },
+  "physics.geo-ph": {
+    "name": "Geophysics",
+    "field": "physics",
+    "description": "Atmospheric physics. Biogeosciences. Computational geophysics. Geographic location. Geoinformatics. Geophysical techniques. Hydrospheric geophysics. Magnetospheric physics. Mathematical geophysics. Planetology. Solar system. Solid earth geophysics. Space plasma physics. Mineral physics. High pressure physics."
+  },
+  "physics.hist-ph": {
+    "name": "History and Philosophy of Physics",
+    "field": "physics",
+    "description": "History and philosophy of all branches of physics, astrophysics, and cosmology, including appreciations of physicists."
+  },
+  "physics.ins-det": {
+    "name": "Instrumentation and Detectors",
+    "field": "physics",
+    "description": "Instrumentation and Detectors for research in natural science, including optical, molecular, atomic, nuclear and particle physics instrumentation and the associated electronics, services, infrastructure and control equipment."
+  },
+  "physics.med-ph": {
+    "name": "Medical Physics",
+    "field": "physics",
+    "description": "Radiation therapy. Radiation dosimetry. Biomedical imaging modelling. Reconstruction, processing, and analysis. Biomedical system modelling and analysis. Health physics. New imaging or therapy modalities."
+  },
+  "physics.optics": {
+    "name": "Optics",
+    "field": "physics",
+    "description": "Adaptive optics. Astronomical optics. Atmospheric optics. Biomedical optics. Cardinal points. Collimation. Doppler effect. Fiber optics. Fourier optics. Geometrical optics (Gradient index optics. Holography. Infrared optics. Integrated optics. Laser applications. Laser optical systems. Lasers. Light amplification. Light diffraction. Luminescence. Microoptics. Nano optics. Ocean optics. Optical computing. Optical devices. Optical imaging. Optical materials. Optical metrology. Optical microscopy. Optical properties. Optical signal processing. Optical testing techniques. Optical wave propagation. Paraxial optics. Photoabsorption. Photoexcitations. Physical optics. Physiological optics. Quantum optics. Segmented optics. Spectra. Statistical optics. Surface optics. Ultrafast optics. Wave optics. X-ray optics."
+  },
+  "physics.plasm-ph": {
+    "name": "Plasma Physics",
+    "field": "physics",
+    "description": "Fundamental plasma physics. Magnetically Confined Plasmas (includes magnetic fusion energy research). High Energy Density Plasmas (inertial confinement plasmas, laser-plasma interactions). Ionospheric, Heliophysical, and Astrophysical plasmas (includes sun and solar system plasmas). Lasers, Accelerators, and Radiation Generation. Low temperature plasmas and plasma applications (include dusty plasmas, semiconductor etching, plasma-based nanotechnology, medical applications). Plasma Diagnostics, Engineering and Enabling Technologies (includes fusion reactor design, heating systems, diagnostics, experimental techniques)"
+  },
+  "physics.pop-ph": {
+    "name": "Popular Physics",
+    "field": "physics",
+    "description": "Description coming soon"
+  },
+  "physics.soc-ph": {
+    "name": "Physics and Society",
+    "field": "physics",
+    "description": "Structure, dynamics and collective behavior of societies and groups (human or otherwise). Quantitative analysis of social networks and other complex networks. Physics and engineering of infrastructure and systems of broad societal impact (e.g., energy grids, transportation networks)."
+  },
+  "physics.space-ph": {
+    "name": "Space Physics",
+    "field": "physics",
+    "description": "Space plasma physics. Heliophysics. Space weather. Planetary magnetospheres, ionospheres and magnetotail. Auroras. Interplanetary space. Cosmic rays. Synchrotron radiation. Radio astronomy."
+  },
+  "quant-ph": {
+    "name": "Quantum Physics",
+    "field": "quant-ph",
+    "description": "Description coming soon"
   },
   "q-bio.BM": {
     "name": "Biomolecules",
@@ -507,7 +707,7 @@
   "q-fin.EC": {
     "name": "Economics",
     "field": "q-fin",
-    "description": ""
+    "description": "q-fin.EC is an alias for econ.GN. Economics, including micro and macro economics, international economics, theory of the firm, labor economics, and other economic topics outside finance"
   },
   "q-fin.GN": {
     "name": "General Finance",
@@ -572,6 +772,6 @@
   "stat.TH": {
     "name": "Statistics Theory",
     "field": "stat",
-    "description": ""
+    "description": "stat.TH is an alias for math.ST. Asymptotics, Bayesian Inference, Decision Theory, Estimation, Foundations, Inference, Testing."
   }
 }
