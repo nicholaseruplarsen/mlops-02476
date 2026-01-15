@@ -85,7 +85,7 @@ def preprocess_data(
         "calibration": samples[n_train + n_val + n_test :],
     }
 
-    print(f"\nSplit sizes:")
+    print("\nSplit sizes:")
     for name, data in splits.items():
         print(f"  {name}: {len(data):,}")
 
@@ -119,7 +119,7 @@ def arxiv_dataset() -> tuple[TensorDataset, TensorDataset]:
 
     # TensorDataset expects tensors, but we have strings for texts
     # Return as simple tuple datasets instead
-    return (train_texts, train_labels), (test_texts, test_labels) # type: ignore
+    return (train_texts, train_labels), (test_texts, test_labels)  # type: ignore
 
 
 if __name__ == "__main__":
