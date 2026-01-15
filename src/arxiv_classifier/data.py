@@ -1,100 +1,207 @@
+"""Data loading and preprocessing for arXiv paper classification."""
+
 import json
+import random
+import subprocess
+import zipfile
+from collections import Counter
 from pathlib import Path
 
-import kagglehub
 import torch
 import typer
 from torch.utils.data import Dataset
 
-from arxiv_classifier.model import CATEGORY_TO_IDX, NUM_CATEGORIES
-
-app = typer.Typer()
-
-ARXIV_DATASET_PATH = (
-    Path.home() / ".cache/kagglehub/datasets/Cornell-University/arxiv/versions/268/arxiv-metadata-oai-snapshot.json"
-)
+KAGGLE_DATASET_URL = "https://www.kaggle.com/api/v1/datasets/download/Cornell-University/arxiv"
 
 
-@app.command()
-def download() -> Path:
-    """Download the arxiv dataset from Kaggle."""
-    print("Downloading arxiv dataset from Kaggle...")
-    path = kagglehub.dataset_download("Cornell-University/arxiv")
-    print(f"Dataset downloaded to: {path}")
-    return Path(path)
+def download_raw_data(raw_dir: Path = Path("data/raw")) -> Path:
+    """Download arXiv dataset from Kaggle into data/raw/. Returns path to JSON file."""
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    json_path = raw_dir / "arxiv-metadata-oai-snapshot.json"
+
+    if json_path.exists():
+        print(f"Dataset already exists at: {json_path}")
+        return json_path
+
+    zip_path = raw_dir / "arxiv.zip"
+
+    print("Downloading arXiv dataset from Kaggle...")
+    subprocess.run(["curl", "-L", "-o", str(zip_path), KAGGLE_DATASET_URL], check=True)
+
+    print("Extracting dataset...")
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        zf.extractall(raw_dir)
+
+    zip_path.unlink()  # Remove zip after extraction
+    print(f"Dataset available at: {json_path}")
+    return json_path
 
 
-def map_category(cat: str) -> str | None:
-    """Map arxiv category to our top-level category groups."""
-    # Direct matches
-    if cat in CATEGORY_TO_IDX:
-        return cat
-    # Handle subcategories (e.g., cs.AI -> cs, math.AG -> math)
-    top_level = cat.split(".")[0]
-    if top_level in CATEGORY_TO_IDX:
-        return top_level
-    # Handle hep-* and nucl-* variants
-    if top_level.startswith("hep-"):
-        return "hep"
-    if top_level.startswith("nucl-"):
-        return "nucl"
-    # math-ph maps to physics
-    if top_level == "math-ph":
-        return "physics"
-    return None
+def stream_arxiv_jsonl(jsonl_path: Path, max_samples: int | None = None):
+    """Stream arXiv JSONL file, yielding one paper at a time."""
+    count = 0
+    with open(jsonl_path, "r", encoding="utf-8") as f:
+        for line in f:
+            # Optional cap becasue the json is huge
+            if max_samples and count >= max_samples:
+                break
+
+            paper = json.loads(line)
+
+            title = paper.get("title", "").strip()
+            abstract = paper.get("abstract", "").strip()
+            categories = paper.get("categories", "").strip()
+
+            # Skip invalid data
+            if not title or not abstract or not categories:
+                continue
+
+            # Clean whitespace
+            title = " ".join(title.split())
+            abstract = " ".join(abstract.split())
+
+            # Primary category only (delibarate. if we include all secondary categories prediction because unnecessarily complex)
+            primary_category = categories.split()[0]
+
+            yield {
+                "text": f"{title} [SEP] {abstract}",
+                "category": primary_category,
+            }
+            count += 1
+
+
+def preprocess_data(
+    raw_path: Path | None = None,
+    output_folder: Path = Path("data/processed"),
+    max_samples: int = 100_000,
+    seed: int = 42,
+) -> None:
+    """
+    Preprocess arXiv JSON into train/val/test/calibration .pt files.
+
+    If raw_path is not provided or doesn't exist, downloads from Kaggle.
+    """
+    # Auto-download from Kaggle if raw data not provided
+    if raw_path is None or not raw_path.exists():
+        raw_path = download_raw_data()
+
+    random.seed(seed)
+    output_folder = Path(output_folder)
+    output_folder.mkdir(parents=True, exist_ok=True)
+
+    print(f"Streaming up to {max_samples:,} papers from {raw_path}...")
+    samples = list(stream_arxiv_jsonl(raw_path, max_samples))
+    print(f"Loaded {len(samples):,} papers")
+
+    random.shuffle(samples)
+
+    # Build label encoder
+    categories = [s["category"] for s in samples]
+    category_counts = Counter(categories)
+    print(f"Found {len(category_counts)} unique categories")
+    print("Top 10 categories:")
+    for cat, count in category_counts.most_common(10):
+        print(f"  {cat}: {count:,}")
+
+    unique_categories = sorted(category_counts.keys())
+    label_to_id = {label: idx for idx, label in enumerate(unique_categories)}
+    id_to_label = {idx: label for label, idx in label_to_id.items()}
+
+    # Split: 70% train, 10% val, 10% test, 10% calibration (calibration for conformal inference)
+    n = len(samples)
+    n_train = int(n * 0.7)
+    n_val = int(n * 0.1)
+    n_test = int(n * 0.1)
+
+    splits = {
+        "train": samples[:n_train],
+        "val": samples[n_train : n_train + n_val],
+        "test": samples[n_train + n_val : n_train + n_val + n_test],
+        "calibration": samples[n_train + n_val + n_test :],
+    }
+
+    print("\nSplit sizes:")
+    for name, data in splits.items():
+        print(f"  {name}: {len(data):,}")
+
+    # Save each split
+    for name, data in splits.items():
+        texts = [s["text"] for s in data]
+        labels = torch.tensor([label_to_id[s["category"]] for s in data]).long()
+
+        torch.save(texts, output_folder / f"{name}_texts.pt")
+        torch.save(labels, output_folder / f"{name}_labels.pt")
+        print(f"Saved {name}_texts.pt and {name}_labels.pt")
+
+    # Save label encoder
+    label_encoder = {"label_to_id": label_to_id, "id_to_label": id_to_label}
+    with open(output_folder / "label_encoder.json", "w") as f:
+        json.dump(label_encoder, f, indent=2)
+    print("Saved label_encoder.json")
+
+    print("\nDone!")
 
 
 class ArxivDataset(Dataset):
-    """Arxiv papers dataset for multi-label classification."""
+    """Dataset wrapper for preprocessed arXiv data."""
 
-    def __init__(self, data_path: Path = ARXIV_DATASET_PATH, max_samples: int | None = None) -> None:
-        """Load arxiv dataset from JSON file.
-
-        Args:
-            data_path: Path to the arxiv JSON file
-            max_samples: Maximum number of samples to load (None for all)
-        """
-        self.samples: list[dict] = []
-
-        print(f"Loading arxiv dataset from {data_path}...")
-        with open(data_path) as f:
-            for i, line in enumerate(f):
-                if max_samples and i >= max_samples:
-                    break
-
-                paper = json.loads(line)
-
-                # Create multi-hot label vector
-                labels = torch.zeros(NUM_CATEGORIES)
-                categories = paper["categories"].split()
-
-                for cat in categories:
-                    mapped = map_category(cat)
-                    if mapped and mapped in CATEGORY_TO_IDX:
-                        labels[CATEGORY_TO_IDX[mapped]] = 1.0
-
-                # Skip papers with no valid categories
-                if labels.sum() == 0:
-                    continue
-
-                # Combine title and abstract as input text
-                title = paper.get("title", "").replace("\n", " ").strip()
-                abstract = paper.get("abstract", "").replace("\n", " ").strip()
-                text = f"{title}. {abstract}"
-
-                self.samples.append({"text": text, "labels": labels})
-
-                if len(self.samples) % 100000 == 0:
-                    print(f"  Loaded {len(self.samples)} samples...")
-
-        print(f"Loaded {len(self.samples)} samples")
+    def __init__(self, texts: list[str], labels: torch.Tensor) -> None:
+        self.texts = texts
+        self.labels = labels
 
     def __len__(self) -> int:
-        return len(self.samples)
+        return len(self.texts)
 
-    def __getitem__(self, index: int) -> dict:
-        return self.samples[index]
+    def __getitem__(self, idx: int) -> dict:
+        return {"text": self.texts[idx], "label": self.labels[idx]}
+
+
+def load_label_encoder(path: Path = Path("data/processed/label_encoder.json")) -> dict:
+    """Load label encoder from JSON file."""
+    with open(path) as f:
+        return json.load(f)
+
+
+def get_num_classes(path: Path = Path("data/processed/label_encoder.json")) -> int:
+    """Get number of classes from label encoder."""
+    encoder = load_label_encoder(path)
+    return len(encoder["label_to_id"])
+
+
+def load_split(split: str, data_dir: Path = Path("data/processed")) -> ArxivDataset:
+    """Load a data split as ArxivDataset.
+
+    Args:
+        split: One of 'train', 'val', 'test', 'calibration'
+        data_dir: Directory containing processed .pt files
+    """
+    texts = torch.load(data_dir / f"{split}_texts.pt", weights_only=False)
+    labels = torch.load(data_dir / f"{split}_labels.pt", weights_only=True)
+    return ArxivDataset(texts, labels)
+
+
+def arxiv_dataset() -> tuple[tuple, tuple]:
+    """Return train and test datasets for arXiv classification.
+
+    Note: Returns raw text strings, not tokenized. Tokenization happens in training.
+    """
+    train_texts = torch.load("data/processed/train_texts.pt", weights_only=False)
+    train_labels = torch.load("data/processed/train_labels.pt", weights_only=True)
+    test_texts = torch.load("data/processed/test_texts.pt", weights_only=False)
+    test_labels = torch.load("data/processed/test_labels.pt", weights_only=True)
+
+    return (train_texts, train_labels), (test_texts, test_labels)
+
+
+def main(
+    raw_path: Path | None = typer.Argument(None, help="Path to raw JSONL. Downloads from Kaggle if not provided."),
+    output_folder: Path = typer.Option(Path("data/processed"), help="Output directory for processed files"),
+    max_samples: int = typer.Option(100_000, help="Maximum number of samples to process"),
+    seed: int = typer.Option(42, help="Random seed for reproducibility"),
+) -> None:
+    """Preprocess arXiv data for classification."""
+    preprocess_data(raw_path, output_folder, max_samples, seed)
 
 
 if __name__ == "__main__":
-    app()
+    typer.run(main)

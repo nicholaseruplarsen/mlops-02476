@@ -2,7 +2,7 @@
 
 ![arXiv ML](arxiv-ml-landscape.webp)
 
-["Good artists copy, great artists steal - Picasso"](https://www.reddit.com/r/dataisbeautiful/comments/18b1qrd/oc_a_data_map_of_machine_learning_papers_on_arxiv/)
+["Good artists copy, great artists steal" - Picasso](https://www.reddit.com/r/dataisbeautiful/comments/18b1qrd/oc_a_data_map_of_machine_learning_papers_on_arxiv/)
 
 This project develops an end-to-end ML pipeline for classifying scientific research papers into subject categories based on their textual content. The goal is to build a system that can ingest paper metadata and predict relevant research domains, with emphasis on robust MLOps practices including reproducibility, containerization, continuous integration, and cloud deployment.
 
@@ -12,6 +12,21 @@ We will use this arXiv dataset from Kaggle, which contains metadata for approxim
 
 https://www.kaggle.com/datasets/Cornell-University/arxiv
 
+### Setup
+
+Data is tracked with DVC and stored in GCS. To pull:
+
+```bash
+uv run dvc pull --no-run-cache
+```
+
+To update data after modifications:
+
+```bash
+uv run dvc add data/
+uv run dvc push --no-run-cache
+git add data.dvc && git commit -m "Update data" && git push
+```
 
 For initial development and faster iteration, we subsample to a manageable subset focusing on categories with clear boundaries. The arXiv category taxonomy provides ground truth labels for supervised training without requiring manual annotation.
 
