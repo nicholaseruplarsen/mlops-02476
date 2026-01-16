@@ -1,13 +1,17 @@
+"""Training script with Hydra config and W&B logging."""
+
 import os
 from pathlib import Path
 
+import hydra
 import torch
-import typer
+import wandb
+from omegaconf import DictConfig, OmegaConf
 from torch import nn
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 
-from arxiv_classifier.data import load_split
-from arxiv_classifier.model import ArxivClassifier
+from arxiv_classifier.data import ArxivDataset, load_split
+from arxiv_classifier.models import get_model
 from arxiv_classifier.training_output import (
     ProgressBar,
     log_epoch_summary,
@@ -16,39 +20,25 @@ from arxiv_classifier.training_output import (
     set_seed,
 )
 
-# Hardcoded hyperparameters - will refactor to Hydra configs later
-BATCH_SIZE = 32
-LEARNING_RATE = 1e-3
-EPOCHS = 10
-VAL_SPLIT = 0.1
-NUM_WORKERS = min(8, os.cpu_count() or 1)
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def collate_fn(batch: list[dict]) -> dict:
-    """Custom collate to handle text + labels."""
+def text_collate_fn(batch: list[dict]) -> dict:
+    """Simple collator that passes texts through."""
     texts = [item["text"] for item in batch]
     labels = torch.stack([item["label"] for item in batch])
     return {"texts": texts, "labels": labels}
 
 
-def train_epoch(
-    model: nn.Module,
-    dataloader: DataLoader,
-    optimizer: torch.optim.Optimizer,
-    criterion: nn.Module,
-    epoch: int,
-    epochs: int,
-) -> float:
-    """Train for one epoch, return average loss."""
+def train_epoch(model, dataloader, optimizer, scheduler, criterion, scaler, epoch, epochs, cfg):
+    """Train for one epoch."""
     model.train()
 
-    assert dataloader.dataset is not None
     pbar = ProgressBar(
-        total=len(dataloader.dataset),  # type: ignore[arg-type]
+        total=len(dataloader.dataset),
         desc=f"E{epoch + 1}/{epochs}",
         device=DEVICE,
-        batch_size=dataloader.batch_size or BATCH_SIZE,
+        batch_size=cfg.training.batch_size,
     )
 
     for batch in dataloader:
@@ -56,10 +46,18 @@ def train_epoch(
         labels = batch["labels"].to(DEVICE, non_blocking=True)
 
         optimizer.zero_grad()
-        logits = model(texts)
-        loss = criterion(logits, labels)
-        loss.backward()
-        optimizer.step()
+
+        with torch.autocast(device_type=DEVICE.type, dtype=torch.float16):
+            logits = model(texts)
+            loss = criterion(logits, labels)
+
+        scaler.scale(loss).backward()
+        scaler.unscale_(optimizer)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        scaler.step(optimizer)
+        scaler.update()
+        if pbar.batch_count > 1:  # Skip first batch
+            scheduler.step()
 
         pbar.update(loss, labels.size(0))
 
@@ -68,20 +66,15 @@ def train_epoch(
     return avg_loss
 
 
-def validate(
-    model: nn.Module,
-    dataloader: DataLoader,
-    criterion: nn.Module,
-) -> tuple[float, float]:
-    """Validate model, return average loss and accuracy."""
+def validate(model, dataloader, criterion, cfg):
+    """Validate and return loss and accuracy."""
     model.eval()
 
-    assert dataloader.dataset is not None
     pbar = ProgressBar(
-        total=len(dataloader.dataset),  # type: ignore[arg-type]
+        total=len(dataloader.dataset),
         desc="Valid",
         device=DEVICE,
-        batch_size=dataloader.batch_size or BATCH_SIZE,
+        batch_size=cfg.training.batch_size,
         is_eval=True,
     )
 
@@ -93,12 +86,12 @@ def validate(
             texts = batch["texts"]
             labels = batch["labels"].to(DEVICE, non_blocking=True)
 
-            logits = model(texts)
-            loss = criterion(logits, labels)
+            with torch.autocast(device_type=DEVICE.type, dtype=torch.float16):
+                logits = model(texts)
+                loss = criterion(logits, labels)
 
             pbar.update(loss, labels.size(0))
 
-            # Single-label accuracy
             preds = logits.argmax(dim=-1)
             correct += (preds == labels).sum().item()
             total += labels.size(0)
@@ -109,49 +102,45 @@ def validate(
     return avg_loss, accuracy
 
 
-def train(
-    dataset: Dataset | None = None,
-    val_dataset: Dataset | None = None,
-    epochs: int = EPOCHS,
-    batch_size: int = BATCH_SIZE,
-    learning_rate: float = LEARNING_RATE,
-    output_dir: Path = Path("models"),
-    num_workers: int = NUM_WORKERS,
-    seed: int = 42,
-) -> nn.Module:
-    """Main training function.
+def train(cfg: DictConfig):
+    """Main training function."""
+    set_seed(cfg.training.seed)
 
-    Args:
-        dataset: Dataset to train on. If None, loads from data/processed/.
-        val_dataset: Validation dataset. If None, loads from data/processed/.
-        epochs: Number of training epochs
-        batch_size: Batch size for training
-        learning_rate: Learning rate for optimizer
-        output_dir: Directory to save model checkpoints
-        num_workers: Number of data loader workers
-        seed: Random seed for reproducibility
-
-    Returns:
-        Trained model
-    """
-    set_seed(seed)
+    # Resolve output directory (Hydra changes cwd)
+    output_dir = Path(hydra.utils.get_original_cwd()) / cfg.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Load preprocessed data if none provided
-    if dataset is None:
-        dataset = load_split("train")
+    # Load datasets
+    data_dir = Path(hydra.utils.get_original_cwd()) / "data" / "processed"
+    dataset = load_split("train", data_dir=data_dir)
+    val_dataset = load_split("val", data_dir=data_dir)
 
-    # Load validation set if none provided
-    if val_dataset is None:
-        val_dataset = load_split("val")
+    # Subsample if requested
+    if cfg.training.max_samples:
+        max_samples = cfg.training.max_samples
+        if len(dataset) > max_samples:
+            indices = torch.randperm(len(dataset))[:max_samples].tolist()
+            dataset = ArxivDataset(
+                [dataset.texts[i] for i in indices],
+                dataset.labels[indices],
+            )
+        # Subsample val proportionally
+        val_samples = max(1000, max_samples // 7)
+        if len(val_dataset) > val_samples:
+            indices = torch.randperm(len(val_dataset))[:val_samples].tolist()
+            val_dataset = ArxivDataset(
+                [val_dataset.texts[i] for i in indices],
+                val_dataset.labels[indices],
+            )
 
-    train_size = len(dataset)  # type: ignore
-    val_size = len(val_dataset)  # type: ignore
+    train_size = len(dataset)
+    val_size = len(val_dataset)
 
-    # DataLoader kwargs for speed
+    # Create dataloaders
+    num_workers = min(cfg.training.num_workers, os.cpu_count() or 1)
     loader_kwargs = {
-        "batch_size": batch_size,
-        "collate_fn": collate_fn,
+        "batch_size": cfg.training.batch_size,
+        "collate_fn": text_collate_fn,
         "num_workers": num_workers,
         "pin_memory": DEVICE.type == "cuda",
         "persistent_workers": num_workers > 0,
@@ -161,51 +150,100 @@ def train(
     train_loader = DataLoader(dataset, shuffle=True, **loader_kwargs)
     val_loader = DataLoader(val_dataset, shuffle=False, **loader_kwargs)
 
-    log_training_config(train_size, val_size, DEVICE, num_workers, batch_size)
+    log_training_config(train_size, val_size, DEVICE, num_workers, cfg.training.batch_size)
 
-    model = ArxivClassifier().to(DEVICE)
-    optimizer = torch.optim.Adam(model.classifier.parameters(), lr=learning_rate)
+    # Create model from config
+    model_kwargs = {k: v for k, v in cfg.model.items() if k != "name"}
+    model = get_model(cfg.model.name, **model_kwargs).to(DEVICE)
+    trainable, total = model.count_parameters()
+    print(f"Parameters: {trainable:,} trainable / {total:,} total ({trainable / total:.1%})")
+
+    # Optimizer
+    optimizer = torch.optim.AdamW(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr=cfg.training.learning_rate,
+        weight_decay=0.01,
+    )
+
+    # Scheduler
+    total_steps = len(train_loader) * cfg.training.epochs
+    warmup_steps = int(0.1 * total_steps)
+
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        optimizer,
+        max_lr=cfg.training.learning_rate,
+        total_steps=total_steps,
+        pct_start=warmup_steps / total_steps,
+        anneal_strategy="cos",
+    )
+
     criterion = nn.CrossEntropyLoss()
+    scaler = torch.amp.GradScaler()
 
     best_val_loss = float("inf")
+    best_val_acc = 0.0
 
-    for epoch in range(epochs):
-        train_loss = train_epoch(model, train_loader, optimizer, criterion, epoch, epochs)
-        val_loss, val_acc = validate(model, val_loader, criterion)
+    for epoch in range(cfg.training.epochs):
+        train_loss = train_epoch(
+            model, train_loader, optimizer, scheduler, criterion, scaler, epoch, cfg.training.epochs, cfg
+        )
+        val_loss, val_acc = validate(model, val_loader, criterion, cfg)
 
         improved = val_loss < best_val_loss
 
         if improved:
             best_val_loss = val_loss
+            best_val_acc = val_acc
             torch.save(model.state_dict(), output_dir / "best_model.pt")
 
-        log_epoch_summary(epoch, epochs, train_loss, val_loss, val_acc, improved)
+        log_epoch_summary(epoch, cfg.training.epochs, train_loss, val_loss, val_acc, improved)
+
+        # Log to W&B
+        if wandb.run is not None:
+            wandb.log(
+                {
+                    "epoch": epoch + 1,
+                    "train/loss": train_loss,
+                    "val/loss": val_loss,
+                    "val/accuracy": val_acc,
+                    "learning_rate": scheduler.get_last_lr()[0],
+                }
+            )
 
     # Save final model
     torch.save(model.state_dict(), output_dir / "final_model.pt")
     log_training_complete(output_dir)
 
+    # Log best metrics to W&B summary
+    if wandb.run is not None:
+        wandb.run.summary["best_val_loss"] = best_val_loss
+        wandb.run.summary["best_val_accuracy"] = best_val_acc
+
     return model
 
 
-def main(
-    epochs: int = typer.Option(EPOCHS, help="Number of training epochs"),
-    batch_size: int = typer.Option(BATCH_SIZE, help="Batch size"),
-    learning_rate: float = typer.Option(LEARNING_RATE, help="Learning rate"),
-    output_dir: Path = typer.Option(Path("models"), help="Output directory for models"),
-    num_workers: int = typer.Option(NUM_WORKERS, help="Number of data loader workers"),
-    seed: int = typer.Option(42, help="Random seed"),
-) -> None:
-    """Train the arxiv classifier."""
-    train(
-        epochs=epochs,
-        batch_size=batch_size,
-        learning_rate=learning_rate,
-        output_dir=output_dir,
-        num_workers=num_workers,
-        seed=seed,
+@hydra.main(config_path="../../configs", config_name="config", version_base=None)
+def main(cfg: DictConfig):
+    """Entry point with Hydra config."""
+    # Print config
+    print(OmegaConf.to_yaml(cfg))
+
+    # Initialize W&B
+    wandb.init(
+        project=cfg.wandb.project,
+        entity=cfg.wandb.entity,
+        config=OmegaConf.to_container(cfg, resolve=True),
+        mode=cfg.wandb.mode,
+        name=f"{cfg.model.name}",
     )
+
+    try:
+        model = train(cfg)
+    finally:
+        wandb.finish()
+
+    return model
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    main()

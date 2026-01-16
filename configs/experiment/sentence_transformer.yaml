@@ -1,0 +1,15 @@
+# @package _global_
+# Frozen sentence transformer embeddings + MLP classifier
+# Fastest training, lowest memory, good baseline
+
+model:
+  name: sentence_transformer
+  # Options: all-mpnet-base-v2 (best quality), all-MiniLM-L6-v2 (fastest)
+  # Note: allenai/specter2 has PEFT compatibility issues
+  encoder_name: sentence-transformers/all-mpnet-base-v2
+  hidden_dim: 256
+  dropout: 0.1
+
+training:
+  learning_rate: 1e-3  # Higher LR for MLP-only training
+  batch_size: 128  # Can be larger since encoder is frozen

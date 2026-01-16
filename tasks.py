@@ -19,9 +19,32 @@ def preprocess_data(ctx: Context, max_samples: int | None = None) -> None:
 
 
 @task
-def train(ctx: Context) -> None:
-    """Train model."""
-    ctx.run(f"uv run src/{PROJECT_NAME}/train.py", echo=True, pty=not WINDOWS)
+def train(
+    ctx: Context,
+    experiment: str | None = None,
+    max_samples: int | None = None,
+    epochs: int | None = None,
+    wandb_mode: str = "online",
+) -> None:
+    """Train model with Hydra config.
+
+    Examples:
+        invoke train                                    # Default (scibert_frozen)
+        invoke train --experiment sentence_transformer  # Sentence transformer
+        invoke train --experiment scibert_full          # Full fine-tuning
+        invoke train --max-samples 10000 --epochs 3     # Quick iteration
+        invoke train --wandb-mode disabled              # No W&B logging
+    """
+    cmd = f"uv run python -m {PROJECT_NAME}.train"
+    if experiment:
+        cmd += f" experiment={experiment}"
+    if max_samples:
+        cmd += f" training.max_samples={max_samples}"
+    if epochs:
+        cmd += f" training.epochs={epochs}"
+    if wandb_mode != "online":
+        cmd += f" wandb.mode={wandb_mode}"
+    ctx.run(cmd, echo=True, pty=not WINDOWS)
 
 
 @task

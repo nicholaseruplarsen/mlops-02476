@@ -1,0 +1,14 @@
+# @package _global_
+# SciBERT with top-4 layers fine-tuned (freeze first 8 of 12 layers)
+# Good balance of performance vs training speed
+
+model:
+  name: scibert
+  model_name: allenai/scibert_scivocab_cased
+  freeze_layers: 8  # Freeze first 8 layers, fine-tune last 4
+  dropout: 0.1
+  max_length: 512
+
+training:
+  learning_rate: 2e-5
+  batch_size: 64
