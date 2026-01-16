@@ -1,11 +1,9 @@
 """Tests for training functionality."""
 
 import shutil
-from pathlib import Path
 
 import pytest
 import torch
-from omegaconf import OmegaConf
 from torch import nn
 from torch.utils.data import DataLoader
 

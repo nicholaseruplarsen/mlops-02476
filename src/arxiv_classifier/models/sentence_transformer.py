@@ -61,7 +61,7 @@ class SentenceTransformerClassifier(BaseClassifier):
 if __name__ == "__main__":
     model = SentenceTransformerClassifier()
     trainable, total = model.count_parameters()
-    print(f"Trainable: {trainable:,} / {total:,} ({trainable/total:.1%})")
+    print(f"Trainable: {trainable:,} / {total:,} ({trainable / total:.1%})")
 
     texts = [
         "Attention Is All You Need. We propose a new architecture.",

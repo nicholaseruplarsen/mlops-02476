@@ -156,7 +156,7 @@ def train(cfg: DictConfig):
     model_kwargs = {k: v for k, v in cfg.model.items() if k != "name"}
     model = get_model(cfg.model.name, **model_kwargs).to(DEVICE)
     trainable, total = model.count_parameters()
-    print(f"Parameters: {trainable:,} trainable / {total:,} total ({trainable/total:.1%})")
+    print(f"Parameters: {trainable:,} trainable / {total:,} total ({trainable / total:.1%})")
 
     # Optimizer
     optimizer = torch.optim.AdamW(
@@ -185,8 +185,7 @@ def train(cfg: DictConfig):
 
     for epoch in range(cfg.training.epochs):
         train_loss = train_epoch(
-            model, train_loader, optimizer, scheduler, criterion, scaler,
-            epoch, cfg.training.epochs, cfg
+            model, train_loader, optimizer, scheduler, criterion, scaler, epoch, cfg.training.epochs, cfg
         )
         val_loss, val_acc = validate(model, val_loader, criterion, cfg)
 
@@ -201,13 +200,15 @@ def train(cfg: DictConfig):
 
         # Log to W&B
         if wandb.run is not None:
-            wandb.log({
-                "epoch": epoch + 1,
-                "train/loss": train_loss,
-                "val/loss": val_loss,
-                "val/accuracy": val_acc,
-                "learning_rate": scheduler.get_last_lr()[0],
-            })
+            wandb.log(
+                {
+                    "epoch": epoch + 1,
+                    "train/loss": train_loss,
+                    "val/loss": val_loss,
+                    "val/accuracy": val_acc,
+                    "learning_rate": scheduler.get_last_lr()[0],
+                }
+            )
 
     # Save final model
     torch.save(model.state_dict(), output_dir / "final_model.pt")
