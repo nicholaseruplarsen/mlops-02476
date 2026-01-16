@@ -14,6 +14,14 @@ https://www.kaggle.com/datasets/Cornell-University/arxiv
 
 ### Setup
 
+Install dependencies:
+
+```bash
+uv sync                 # CPU (default)
+uv sync --extra cuda    # NVIDIA GPU
+uv sync --extra rocm    # AMD GPU (Ubuntu only. Requires ROCm installed)
+```
+
 Data is tracked with DVC and stored in GCS. To pull:
 
 ```bash
