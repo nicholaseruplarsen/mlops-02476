@@ -45,16 +45,17 @@ class SentenceTransformerClassifier(BaseClassifier):
     def forward(self, texts: list[str]) -> torch.Tensor:
         device = next(self.classifier.parameters()).device
 
-        # Encode texts (no gradient)
+        # Encode texts (no gradient) - explicitly set device
         with torch.no_grad():
             embeddings = self.encoder.encode(
                 texts,
                 convert_to_tensor=True,
                 show_progress_bar=False,
+                device=device,
             )
 
-        # Move to correct device and run classifier
-        embeddings = embeddings.to(device)
+        # Clone to convert from inference tensor to regular tensor for autograd
+        embeddings = embeddings.clone()
         return self.classifier(embeddings)
 
 
