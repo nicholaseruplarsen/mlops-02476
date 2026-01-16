@@ -34,7 +34,7 @@ jobs:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
       - name: Cache DVC data
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             .dvc/cache
