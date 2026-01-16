@@ -186,3 +186,12 @@ cython_debug/
 *.psd
 
 CLAUDE.md
+
+# Hydra outputs
+outputs/
+
+# W&B local data
+wandb/
+
+# Syncthing
+.stfolder/

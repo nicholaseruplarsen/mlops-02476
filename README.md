@@ -30,6 +30,36 @@ git add data.dvc && git commit -m "Update data" && git push
 
 For initial development and faster iteration, we subsample to a manageable subset focusing on categories with clear boundaries. The arXiv category taxonomy provides ground truth labels for supervised training without requiring manual annotation.
 
+## Get started
+
+```bash
+uv run invoke preproccess-data
+uv run invoke train
+uv run invoke test
+```
+
+## Training
+
+```bash
+Usage:
+# Default (scibert_frozen)
+invoke train
+
+# Compare different models
+invoke train --experiment sentence_transformer
+invoke train --experiment scibert_full
+invoke train --experiment scibert_frozen
+
+# Quick iteration
+invoke train --experiment sentence_transformer --max-samples 10000 --epochs 3
+
+# Disable W&B logging
+invoke train --wandb-mode disabled
+
+# Direct Hydra overrides
+uv run python -m arxiv_classifier.train experiment=sentence_transformer training.batch_size=256
+```
+
 ## Model
 
 We will use pretrained transformer models for multi-label text classification, with the input being concatenated title and abstract and the output a probability distribution over target categories. Scientific text contains domain-specific terminology that benefits from pretrained representations, so we avoid training from scratch.

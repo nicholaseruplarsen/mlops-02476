@@ -1,0 +1,21 @@
+defaults:
+  - _self_
+  - experiment: scibert_frozen
+
+# Weights & Biases
+wandb:
+  project: arxiv-classifier
+  entity: null  # Set to your username or team, or leave null for default
+  mode: online  # online, offline, or disabled
+
+# Training settings
+training:
+  epochs: 10
+  batch_size: 64
+  learning_rate: 2e-5
+  num_workers: 4
+  seed: 42
+  max_samples: null  # Set to subsample train/val for faster iteration
+
+# Output
+output_dir: models

@@ -1,0 +1,14 @@
+# @package _global_
+# SciBERT with full fine-tuning (all layers trainable)
+# Best accuracy but slowest training, highest memory
+
+model:
+  name: scibert
+  model_name: allenai/scibert_scivocab_cased
+  freeze_layers: -1  # No freezing, full fine-tuning
+  dropout: 0.1
+  max_length: 512
+
+training:
+  learning_rate: 5e-6  # Lower LR for full fine-tuning
+  batch_size: 32  # Smaller batch to fit in memory

@@ -85,7 +85,7 @@ class ProgressBar:
     def __init__(self, total, desc, device, baseline=None, update_freq=50, color=None, is_eval=False, batch_size=1):
         self.total = total
         self.batch_size = batch_size
-        self.total_batches = (total + batch_size - 1) // batch_size
+        # self.total_batches = (total + batch_size - 1) // batch_size
         self.device = device
         self.baseline = baseline
         self.update_freq = update_freq
@@ -118,7 +118,8 @@ class ProgressBar:
 
             timestamp = datetime.now().strftime("%H:%M:%S")
             self.pbar = _tqdm_orig(
-                total=self.total_batches,
+                total=self.total,
+                # total=self.total_batches,
                 desc=f"{timestamp} - {desc:>5}",
                 bar_format="{desc} │ {postfix} │{bar:43}│ [{elapsed} {rate_fmt}] {n:,}/{total:,} │ " + self.dev_display,
                 colour=self.color,
@@ -126,7 +127,7 @@ class ProgressBar:
                 dynamic_ncols=False,
                 ncols=200,
                 postfix={"": self._format_loss()},
-                unit=" batches",
+                unit=" samples",
             )
 
     def _format_loss(self):
@@ -168,7 +169,7 @@ class ProgressBar:
         self.batch_count += 1
 
         if self.pbar:
-            self.pbar.update(1)
+            self.pbar.update(batch_size)
             if self.batch_count % self.update_freq == 0:
                 loss_str = self._format_loss()
                 if self.device.type == "cuda":
