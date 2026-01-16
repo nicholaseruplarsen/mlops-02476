@@ -146,7 +146,7 @@ def train(
         val_dataset = load_split("val")
 
     train_size = len(dataset)  # type: ignore
-    val_size = len(val_dataset)
+    val_size = len(val_dataset)  # type: ignore
 
     # DataLoader kwargs for speed
     loader_kwargs = {

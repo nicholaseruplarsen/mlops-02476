@@ -7,8 +7,10 @@ import zipfile
 from collections import Counter
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import torch
 import typer
+from loguru import logger
 from torch.utils.data import Dataset
 
 KAGGLE_DATASET_URL = "https://www.kaggle.com/api/v1/datasets/download/Cornell-University/arxiv"
@@ -70,14 +72,105 @@ def stream_arxiv_jsonl(jsonl_path: Path, max_samples: int | None = None):
             count += 1
 
 
+def plot_category_distributions(data_dir: Path, output_path: Path) -> None:
+    """Create a 2x2 plot of category distributions for train/val/test/calibration splits."""
+    splits = ["train", "val", "test", "calibration"]
+
+    # Load label encoder as source of truth for num_categories
+    with open(data_dir / "label_encoder.json") as f:
+        label_encoder = json.load(f)
+    num_categories = len(label_encoder["label_to_id"])
+
+    # Load labels for each split
+    labels_by_split = {}
+    for split in splits:
+        labels_path = data_dir / f"{split}_labels.pt"
+        labels_by_split[split] = torch.load(labels_path, weights_only=True)
+
+    # Create 2x2 subplot grid
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    axes = axes.flatten()
+
+    for ax, split in zip(axes, splits):
+        labels = labels_by_split[split]
+        counts = torch.bincount(labels, minlength=num_categories)
+
+        # Warn about unrepresented categories
+        zero_count = (counts == 0).sum().item()
+        if zero_count > 0:
+            logger.warning(f"{split} split has {zero_count} unrepresented categories (0 papers)")
+
+        # X-axis: 1-indexed categories
+        x = range(1, num_categories + 1)
+        ax.bar(x, counts.numpy(), width=1.0, edgecolor="none")
+        ax.set_xlabel("Category")
+        ax.set_ylabel("Number of papers")
+        ax.set_title(f"{split.capitalize()} (n={len(labels):,})")
+        ax.set_xlim(0, num_categories + 1)
+
+    plt.suptitle("Category Distribution Across Splits", fontsize=14, fontweight="bold")
+    plt.tight_layout()
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close()
+    print(f"Saved distribution plot to {output_path}")
+
+
+def plot_distribution_differences(data_dir: Path, output_path: Path) -> None:
+    """Create a 2x2 plot showing category proportion differences vs train split."""
+    # Load label encoder for num_categories
+    with open(data_dir / "label_encoder.json") as f:
+        label_encoder = json.load(f)
+    num_categories = len(label_encoder["label_to_id"])
+
+    # Load all splits
+    splits = ["train", "val", "test", "calibration"]
+    labels_by_split = {}
+    for split in splits:
+        labels_by_split[split] = torch.load(data_dir / f"{split}_labels.pt", weights_only=True)
+
+    # Compute normalized proportions for each split
+    proportions = {}
+    for split, labels in labels_by_split.items():
+        counts = torch.bincount(labels, minlength=num_categories).float()
+        proportions[split] = counts / counts.sum()
+
+    train_prop = proportions["train"]
+
+    # Create 2x2 subplot: train-train, train-val, train-test, train-cal
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    comparisons = [("train", "train"), ("train", "val"), ("train", "test"), ("train", "calibration")]
+
+    for ax, (base, compare) in zip(axes.flatten(), comparisons):
+        diff = (proportions[compare] - train_prop).numpy()
+        colors = ["green" if d >= 0 else "red" for d in diff]
+
+        x = range(1, num_categories + 1)
+        ax.bar(x, diff, width=1.0, color=colors, edgecolor="none")
+        ax.axhline(y=0, color="black", linewidth=0.5)
+        ax.set_xlabel("Category")
+        ax.set_ylabel("Proportion difference")
+        ax.set_title(f"{compare.capitalize()} - Train")
+        ax.set_xlim(0, num_categories + 1)
+
+    plt.suptitle("Category Distribution Differences (vs Train)", fontsize=14, fontweight="bold")
+    plt.tight_layout()
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close()
+    print(f"Saved difference plot to {output_path}")
+
+
 def preprocess_data(
     raw_path: Path | None = None,
     output_folder: Path = Path("data/processed"),
-    max_samples: int = 100_000,
+    max_samples: int | None = None,
     seed: int = 42,
 ) -> None:
     """
-    Preprocess arXiv JSON into train/val/test/calibration .pt files.
+    Preprocess arXiv JSON into train/val/test/calibration .pt files, containing TITLE + ABSTRACT ("text") and THE PRIMARY CATEGORY ("category").
 
     If raw_path is not provided or doesn't exist, downloads from Kaggle.
     """
@@ -89,7 +182,10 @@ def preprocess_data(
     output_folder = Path(output_folder)
     output_folder.mkdir(parents=True, exist_ok=True)
 
-    print(f"Streaming up to {max_samples:,} papers from {raw_path}...")
+    if max_samples:
+        print(f"Streaming up to {max_samples:,} papers from {raw_path}...")
+    else:
+        print(f"Streaming all papers from {raw_path}...")
     samples = list(stream_arxiv_jsonl(raw_path, max_samples))
     print(f"Loaded {len(samples):,} papers")
 
@@ -124,7 +220,7 @@ def preprocess_data(
     for name, data in splits.items():
         print(f"  {name}: {len(data):,}")
 
-    # Save each split
+    # Save each split to a .pt file
     for name, data in splits.items():
         texts = [s["text"] for s in data]
         labels = torch.tensor([label_to_id[s["category"]] for s in data]).long()
@@ -138,6 +234,10 @@ def preprocess_data(
     with open(output_folder / "label_encoder.json", "w") as f:
         json.dump(label_encoder, f, indent=2)
     print("Saved label_encoder.json")
+
+    # Plot category distributions
+    plot_category_distributions(output_folder, Path("reports/figures/category_distributions.png"))
+    plot_distribution_differences(output_folder, Path("reports/figures/category_distribution_differences.png"))
 
     print("\nDone!")
 
@@ -196,7 +296,7 @@ def arxiv_dataset() -> tuple[tuple, tuple]:
 def main(
     raw_path: Path | None = typer.Argument(None, help="Path to raw JSONL. Downloads from Kaggle if not provided."),
     output_folder: Path = typer.Option(Path("data/processed"), help="Output directory for processed files"),
-    max_samples: int = typer.Option(100_000, help="Maximum number of samples to process"),
+    max_samples: int | None = typer.Option(None, help="Maximum samples to process (default: all)"),
     seed: int = typer.Option(42, help="Random seed for reproducibility"),
 ) -> None:
     """Preprocess arXiv data for classification."""

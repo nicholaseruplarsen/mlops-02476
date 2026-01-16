@@ -1,6 +1,6 @@
 import torch
 
-from arxiv_classifier.data import arxiv_dataset
+from arxiv_classifier.data import arxiv_dataset, load_label_encoder
 
 
 def test_arxiv_data_loading_correctly():
@@ -18,3 +18,14 @@ def test_arxiv_data_loading_correctly():
     # Check texts are strings
     assert isinstance(train_texts[0], str)
     assert len(train_texts[0]) > 0
+
+
+def test_all_splits_have_valid_labels():
+    """Verify all splits have labels within the valid range defined by label_encoder."""
+    encoder = load_label_encoder()
+    num_categories = len(encoder["label_to_id"])
+
+    for split in ["train", "val", "test", "calibration"]:
+        labels = torch.load(f"data/processed/{split}_labels.pt", weights_only=True)
+        assert labels.min() >= 0, f"{split} has negative labels"
+        assert labels.max() < num_categories, f"{split} has labels >= {num_categories}"

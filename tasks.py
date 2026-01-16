@@ -1,6 +1,7 @@
 import os
 
-from invoke import Context, task
+from invoke.context import Context
+from invoke.tasks import task
 
 WINDOWS = os.name == "nt"
 PROJECT_NAME = "arxiv_classifier"
@@ -9,9 +10,12 @@ PYTHON_VERSION = "3.12"
 
 # Project commands
 @task
-def preprocess_data(ctx: Context) -> None:
+def preprocess_data(ctx: Context, max_samples: int | None = None) -> None:
     """Preprocess data."""
-    ctx.run(f"uv run src/{PROJECT_NAME}/data.py data/raw data/processed", echo=True, pty=not WINDOWS)
+    cmd = f"uv run python -m {PROJECT_NAME}.data"
+    if max_samples:
+        cmd += f" --max-samples {max_samples}"
+    ctx.run(cmd, echo=True, pty=not WINDOWS)
 
 
 @task
