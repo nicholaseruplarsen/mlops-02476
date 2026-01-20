@@ -213,6 +213,41 @@ Access the API at `http://localhost:8080` and interactive docs at `http://localh
 
 See [Step 4](#step-4-build-and-push-docker-image) for building and running the Docker image locally.
 
+## Performance and Load Testing
+
+The API has been load tested using [Locust](https://locust.io/). Results on a local machine (CPU, single uvicorn worker):
+
+| Concurrent Users | Requests (30s) | Avg Latency | 95th %ile | Throughput |
+|------------------|----------------|-------------|-----------|------------|
+| 10 | 750 | 54ms | 84ms | ~27 req/s |
+| 50 | 151 | 216ms | 510ms | ~5 req/s |
+
+**Key findings:**
+- Single-worker uvicorn with CPU-bound SciBERT inference is the bottleneck
+- With 10 concurrent users: 0% failure rate, sub-100ms p95 latency
+- With 50 concurrent users: requests queue up, latency degrades
+
+**Scaling options:**
+1. **Cloud Run auto-scaling**: Handles load by spawning multiple container instances automatically
+2. **Multiple uvicorn workers**: `--workers 4` in the CMD
+3. **GPU inference**: Significantly faster model inference (not available on Cloud Run)
+
+### Running Load Tests
+
+```bash
+# Install locust (included in dev dependencies)
+uv sync --group dev
+
+# Start the API locally
+uv run uvicorn arxiv_classifier.api:app --port 8080
+
+# Run load test (in another terminal)
+uv run locust -f tests/locustfile.py --host http://localhost:8080
+
+# Or headless mode
+uv run locust -f tests/locustfile.py --headless -u 10 -r 2 -t 30s --host http://localhost:8080
+```
+
 ## Monitoring and Logs
 
 ### View Logs

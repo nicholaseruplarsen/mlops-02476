@@ -55,6 +55,7 @@ dev = [
     "dvc-gs>=3.0.2",
     "pathspec<1.0.0",             # DVC breaks with pathspec v1.0.0 and above
     "torch-tb-profiler>=0.4.3",
+    "locust>=2.43.1",
 ]
 
 [tool.uv]
