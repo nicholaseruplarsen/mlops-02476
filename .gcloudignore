@@ -1,0 +1,16 @@
+# Ignore large files for Cloud Build
+.git/
+.venv/
+*.pt
+*.pth
+data/
+# Only exclude top-level models dir (not src/arxiv_classifier/models/)
+/models/
+docs/site/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+wandb/
+outputs/

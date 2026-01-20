@@ -1,0 +1,21 @@
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-f'
+      - 'dockerfiles/api.dockerfile'
+      - '-t'
+      - 'europe-west1-docker.pkg.dev/$PROJECT_ID/mlops-repo/arxiv-api:latest'
+      - '.'
+
+  # Push the container image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'europe-west1-docker.pkg.dev/$PROJECT_ID/mlops-repo/arxiv-api:latest'
+
+images:
+  - 'europe-west1-docker.pkg.dev/$PROJECT_ID/mlops-repo/arxiv-api:latest'
+
+timeout: '1200s'
