@@ -1,12 +1,20 @@
-FROM ghcr.io/astral-sh/uv:python3.12-alpine AS base
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS base
 
-COPY uv.lock uv.lock
-COPY pyproject.toml pyproject.toml
+WORKDIR /app
 
-RUN uv sync --frozen --no-install-project
+COPY pyproject.toml README.md LICENSE uv.lock ./
+
+RUN uv sync --frozen --no-install-project --no-cache
 
 COPY src src/
 
-RUN uv sync --frozen
+RUN uv sync --frozen --no-cache
 
-ENTRYPOINT ["uv", "run", "uvicorn", "src.arxiv_classifier.api:app", "--host", "0.0.0.0", "--port", "8000"]
+# Cloud Run sets PORT dynamically; default to 8080 for local dev
+ENV PORT=8080
+
+# Expose the port (documentation only, Cloud Run ignores this)
+EXPOSE $PORT
+
+# Use shell form for $PORT expansion
+CMD uv run uvicorn arxiv_classifier.api:app --host 0.0.0.0 --port $PORT

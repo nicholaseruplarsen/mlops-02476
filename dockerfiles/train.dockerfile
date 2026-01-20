@@ -1,12 +1,13 @@
-FROM ghcr.io/astral-sh/uv:python3.12-alpine AS base
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS base
 
-COPY uv.lock uv.lock
-COPY pyproject.toml pyproject.toml
+WORKDIR /app
 
-RUN uv sync --frozen --no-install-project
+COPY pyproject.toml README.md LICENSE uv.lock ./
+
+RUN uv sync --frozen --no-install-project --no-cache
 
 COPY src src/
 
-RUN uv sync --frozen
+RUN uv sync --frozen --no-cache
 
-ENTRYPOINT ["uv", "run", "src/arxiv_classifier/train.py"]
+ENTRYPOINT ["uv", "run", "python", "-m", "arxiv_classifier.train"]

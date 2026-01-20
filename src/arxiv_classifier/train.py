@@ -124,8 +124,8 @@ def train(cfg: DictConfig):
                 [dataset.texts[i] for i in indices],
                 dataset.labels[indices],
             )
-        # Subsample val proportionally
-        val_samples = max(1000, max_samples // 7)
+        # Subsample val proportionally (use same size as train for tiny datasets)
+        val_samples = max_samples if max_samples < 1000 else max(1000, max_samples // 7)
         if len(val_dataset) > val_samples:
             indices = torch.randperm(len(val_dataset))[:val_samples].tolist()
             val_dataset = ArxivDataset(
