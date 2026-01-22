@@ -53,6 +53,7 @@ def train(
             cmd += f" wandb.mode={wandb_mode}"
     ctx.run(cmd, echo=True, pty=not WINDOWS)
 
+
 @task
 def test(ctx: Context) -> None:
     """Run tests."""
