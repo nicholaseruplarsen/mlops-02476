@@ -102,16 +102,24 @@ def validate(model, dataloader, criterion, cfg):
     return avg_loss, accuracy
 
 
-def train(cfg: DictConfig):
-    """Main training function."""
+def train(cfg: DictConfig, base_dir: Path | None = None):
+    """Main training function.
+
+    Args:
+        cfg: Hydra configuration
+        base_dir: Base directory for data/output paths. If None, uses Hydra's original cwd.
+    """
     set_seed(cfg.training.seed)
 
-    # Resolve output directory (Hydra changes cwd)
-    output_dir = Path(hydra.utils.get_original_cwd()) / cfg.output_dir
+    # Resolve base directory (Hydra changes cwd, Modal uses explicit path)
+    if base_dir is None:
+        base_dir = Path(hydra.utils.get_original_cwd())
+
+    output_dir = base_dir / cfg.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Load datasets
-    data_dir = Path(hydra.utils.get_original_cwd()) / "data" / "processed"
+    data_dir = base_dir / "data" / "processed"
     dataset = load_split("train", data_dir=data_dir)
     val_dataset = load_split("val", data_dir=data_dir)
 

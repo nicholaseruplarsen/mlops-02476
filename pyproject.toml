@@ -19,6 +19,8 @@ dependencies = [
     "fastapi==0.128.0",
     "hydra-core>=1.3.0",
     "loguru>=0.7.0",
+    "matplotlib>=3.10.8",
+    "modal>=1.3.0.post1",
     "nvitop>=1.6.1",
     "omegaconf>=2.3.0",
     "peft>=0.18.1",

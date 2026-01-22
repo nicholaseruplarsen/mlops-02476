@@ -25,25 +25,32 @@ def train(
     max_samples: int | None = None,
     epochs: int | None = None,
     wandb_mode: str = "online",
+    modal: bool = False,
+    extra: str | None = None,
 ) -> None:
-    """Train model with Hydra config.
-
-    Examples:
-        invoke train                                    # Default (scibert_frozen)
-        invoke train --experiment sentence_transformer  # Sentence transformer
-        invoke train --experiment scibert_full          # Full fine-tuning
-        invoke train --max-samples 10000 --epochs 3     # Quick iteration
-        invoke train --wandb-mode disabled              # No W&B logging
-    """
-    cmd = f"uv run python -m {PROJECT_NAME}.train"
-    if experiment:
-        cmd += f" experiment={experiment}"
-    if max_samples:
-        cmd += f" training.max_samples={max_samples}"
-    if epochs:
-        cmd += f" training.epochs={epochs}"
-    if wandb_mode != "online":
-        cmd += f" wandb.mode={wandb_mode}"
+    if modal:
+        cmd = f"uv run modal run -m {PROJECT_NAME}.modal_train"
+        if experiment:
+            cmd += f" --experiment {experiment}"
+        if max_samples:
+            cmd += f" --max-samples {max_samples}"
+        if epochs:
+            cmd += f" --epochs {epochs}"
+        if wandb_mode != "online":
+            cmd += f" --wandb-mode {wandb_mode}"
+    else:
+        cmd = "uv run"
+        if extra:
+            cmd += f" --extra {extra}"
+        cmd += f" python -m {PROJECT_NAME}.train"
+        if experiment:
+            cmd += f" experiment={experiment}"
+        if max_samples:
+            cmd += f" training.max_samples={max_samples}"
+        if epochs:
+            cmd += f" training.epochs={epochs}"
+        if wandb_mode != "online":
+            cmd += f" wandb.mode={wandb_mode}"
     ctx.run(cmd, echo=True, pty=not WINDOWS)
 
 
