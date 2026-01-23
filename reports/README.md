@@ -58,8 +58,8 @@ We create a model that can predict the research category of a scientific paper, 
 * [ ] Setup collection of input-output data from your deployed application (M27)
 * [ ] Deploy to the cloud a drift detection API (M27)
 * [x] Instrument your API with a couple of system metrics (M28)
-* [ ] Setup cloud monitoring of your instrumented application (M28)
-* [ ] Create one or more alert systems in GCP to alert you if your app is not behaving correctly (M28)
+* [x] Setup cloud monitoring of your instrumented application (M28)
+* [x] Create one or more alert systems in GCP to alert you if your app is not behaving correctly (M28)
 * [x] If applicable, optimize the performance of your data loading using distributed data loading (M29)
 * [ ] If applicable, optimize the performance of your training pipeline by using distributed training (M30)
 * [ ] Play around with quantization, compilation and pruning for you trained models to increase inference speed (M31)
@@ -160,7 +160,7 @@ This gives them an exact replica of our development environment with all pinned 
 >
 > Answer:
 
-From the cookiecutter template we filled out the `src/arxiv_classifier/` folder with our main application code including `data.py` for data loading and preprocessing, `train.py` for the training loop, `api.py` for the FastAPI inference service, and a `models/` subfolder containing `base.py`, `scibert.py`, and `sentence_transformer.py` for our model implementations. 
+From the cookiecutter template we filled out the `src/arxiv_classifier/` folder with our main application code including `data.py` for data loading and preprocessing, `train.py` for the training loop, `api.py` for the FastAPI inference service, and a `models/` subfolder containing `base.py`, `scibert.py`, and `sentence_transformer.py` for our model implementations.
 
 We populated the `tests/` folder with unit tests for data, models, training, and API endpoints. We added a `configs/` folder with Hydra configuration files (`config.yaml` and `experiment/` subdirectory) which was not part of the original template. We also added a `dockerfiles/` folder containing `api.dockerfile` and `train.dockerfile` for containerization. The `.github/workflows/` folder was extended with CI/CD pipelines for testing, linting, and Docker builds. We kept the standard `data/` folder structure with `raw/` and `processed/` subdirectories managed by DVC.
 
@@ -177,7 +177,7 @@ We populated the `tests/` folder with unit tests for data, models, training, and
 >
 > Answer:
 
-We use **Ruff** for both linting and formatting, configured in `pyproject.toml` with a line length of 120 characters. Ruff checks are enforced in our CI pipeline via `.github/workflows/linting.yaml` which runs `ruff check` and `ruff format --check` on every push and pull request. We also use **pre-commit hooks** configured in `.pre-commit-config.yaml` that run automatically before each commit, checking for trailing whitespace, ensuring files end with newlines, validating YAML syntax, and blocking large files (>500KB). 
+We use **Ruff** for both linting and formatting, configured in `pyproject.toml` with a line length of 120 characters. Ruff checks are enforced in our CI pipeline via `.github/workflows/linting.yaml` which runs `ruff check` and `ruff format --check` on every push and pull request. We also use **pre-commit hooks** configured in `.pre-commit-config.yaml` that run automatically before each commit, checking for trailing whitespace, ensuring files end with newlines, validating YAML syntax, and blocking large files (>500KB).
 
 For typing, we use Python type hints throughout our codebase, particularly in the API schemas (Pydantic models) and model interfaces. Documentation is provided through docstrings in key modules. These practices matter in larger projects because they ensure consistency across multiple contributors, catch errors early before they reach production, make the codebase more maintainable, and reduce cognitive load when reading unfamiliar code.
 
@@ -198,13 +198,13 @@ For typing, we use Python type hints throughout our codebase, particularly in th
 >
 > Answer:
 
-In total we have implemented **28 tests** across 4 test files. 
+In total we have implemented **28 tests** across 4 test files.
 
-We have 2 tests in `test_data.py` verifying data loading and label validity across all splits. 
+We have 2 tests in `test_data.py` verifying data loading and label validity across all splits.
 
-We have 9 tests in `test_model.py` testing SciBERT and SentenceTransformer forward passes, predictions, layer freezing behavior, and the model registry. 
+We have 9 tests in `test_model.py` testing SciBERT and SentenceTransformer forward passes, predictions, layer freezing behavior, and the model registry.
 
-We have 7 tests in `test_train.py` covering the text collation function, single training steps for both model types, model save/load, and gradient flow verification. 
+We have 7 tests in `test_train.py` covering the text collation function, single training steps for both model types, model save/load, and gradient flow verification.
 
 Finally, we have 10 tests in `test_api.py` testing our FastAPI endpoints including health checks, prediction validation, error handling, and edge cases.
 
@@ -364,8 +364,11 @@ Example workflow run: https://github.com/nicholaseruplarsen/mlops-02476/actions/
 > *training docker image: `docker run trainer:latest lr=1e-3 batch_size=64`. Link to docker file: <weblink>*
 >
 > Answer:
+We used the dockerfiles/api.dockerfile for FastAPI inference. We used dockerfiles/train.dockerfile for training
+Since we used a pretrained model and training was quite long even on a good GPU, we only did 1 training and didnt do multiple experiments
+We have used github actions to automatically build and push to GCP Artifact Registry on pull to main
 
---- question 15 fill here ---
+
 
 ### Question 16
 
@@ -399,7 +402,12 @@ For profiling, we experimented with two tools: snakeviz for CPU profiling (visua
 >
 > Answer:
 
---- question 17 fill here ---
+We used Google Cloud Run Services and we used Buckets.
+Buckets were used to store our model so we could load the model in the service container
+Run services is used to have an instance open always for cloud API requests. I found the differences here between a run job and a run service is that it is always instead of needing a cold boot, so the api is faster.
+We also spent some money on cloud build to build the docker files, but its cheap
+Ended up wasting a bit of money on the services not letting it idle :D, but didnt exceed 50 dollars
+
 
 ### Question 18
 
@@ -424,8 +432,8 @@ For the same reason, we did not use Compute Engine (or Vertex AI) for training. 
 > **You can take inspiration from [this figure](figures/bucket.png).**
 >
 > Answer:
-
---- question 19 fill here ---
+> **
+![GCP Bucket](figures/gcp_bucket.png)
 
 ### Question 20
 
@@ -433,8 +441,10 @@ For the same reason, we did not use Compute Engine (or Vertex AI) for training. 
 > **stored. You can take inspiration from [this figure](figures/registry.png).**
 >
 > Answer:
+> *This is what we have in artifact registry*
+![Artifact Registry](figures/artifact_registry_1.png)
 
---- question 20 fill here ---
+![Artifact Registry Digests](figures/artifact_registry_2.png)
 
 ### Question 21
 
@@ -442,8 +452,11 @@ For the same reason, we did not use Compute Engine (or Vertex AI) for training. 
 > **your project. You can take inspiration from [this figure](figures/build.png).**
 >
 > Answer:
+We have a lot of builds here because I am also working on another personal project right now... i should have made this project it's own project i see that now :(
 
---- question 21 fill here ---
+![Cloud Build History](figures/cloud_build_1.jpg)
+
+![Cloud Build History Continued](figures/cloud_build_2.png)
 
 ### Question 22
 
@@ -457,8 +470,8 @@ For the same reason, we did not use Compute Engine (or Vertex AI) for training. 
 > *was because ...*
 >
 > Answer:
+We did not train our model on Google Cloud Engine, because one of our team members has a GTX 3070 which we used to train 2 long runs on the 2 models we have. We ended up using the best one for the API, which was the SciBert model.
 
---- question 22 fill here ---
 
 ## Deployment
 
@@ -474,6 +487,8 @@ For the same reason, we did not use Compute Engine (or Vertex AI) for training. 
 > *to the API to make it more ...*
 >
 > Answer:
+We used FastAPI to setup API testing of our model.  We have used these endpoints: /predict for our paper classifcation model and we have used /metrics for Prometheus
+We used Pydantic to validate request and responses such as making sure that we get inputs in the correct format and output is the correct format.
 
 --- question 23 fill here ---
 
@@ -490,8 +505,12 @@ For the same reason, we did not use Compute Engine (or Vertex AI) for training. 
 > *`curl -X POST -F "file=@file.json"<weburl>`*
 >
 > Answer:
-
---- question 24 fill here ---
+We deployed our API on google cloud provider's run service. This means the container is always ready to recieve requests
+The API can be quried like this:
+'curl -X POST https://arxiv-api-pquab3rrka-ew.a.run.app/predict \
+    -H "Content-Type: application/json" \
+    -d '{"title": "Paper Title", "abstract": "Paper abstract text"}'
+-
 
 ### Question 25
 
@@ -505,8 +524,14 @@ For the same reason, we did not use Compute Engine (or Vertex AI) for training. 
 > *before the service crashed.*
 >
 > Answer:
+We used pytest with FastAPI to create some mock test and to test throughput. local results showed:
+  | Concurrent Users | Requests (30s) | Avg Latency | 95th %ile | Throughput |
+  |------------------|----------------|-------------|-----------|------------|
+  | 10               | 750            | 54ms        | 84ms      | ~27 req/s  |
+  | 50               | 151            | 216ms       | 510ms     | ~5 req/s   |
+. We can see the latency slowed with more "users".
+We tried querying it 10000 times, but that didn't cause it to crash, but request latency degraded due to inference being bottlenecked by the CPU. This was on GCP not local.
 
---- question 25 fill here ---
 
 ### Question 26
 
@@ -520,8 +545,11 @@ For the same reason, we did not use Compute Engine (or Vertex AI) for training. 
 > *measure ... and ... that would inform us about this ... behaviour of our application.*
 >
 > Answer:
-
---- question 26 fill here ---
+We implemented monitoring wih prometheus to check for how many requests we take, requests handled, alert systems etc
+We used Prometheus to check the length of the inputs we were getting, logs is in: reports/prometheus_metrics.md
+We can see activity on the service running on google cloud
+Lastly we used alerts to notify us when requests exceeded a certain amount. We got the email when the requests were above 3/s when stress testing for 500 requests
+This monitoring allows us to check availability and function of our web service
 
 ## Overall discussion of project
 
