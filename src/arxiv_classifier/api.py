@@ -237,9 +237,19 @@ app = FastAPI(
 # Add metrics middleware
 app.add_middleware(MetricsMiddleware)
 
-# Mount Prometheus metrics endpoint
+# Mount Prometheus metrics endpoint (with trailing slash)
 metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
+
+
+@app.get("/metrics")
+def get_metrics():
+    """Return Prometheus metrics (redirect-free endpoint for sidecar)."""
+    from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+
+    from starlette.responses import Response
+
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 @app.get("/health", response_model=HealthResponse)
