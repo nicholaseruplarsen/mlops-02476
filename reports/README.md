@@ -1,61 +1,11 @@
-# Exam template for 02476 Machine Learning Operations
+# Group 112 Final Report for 02476 Machine Learning Operations
 
-This is the report template for the exam. Please only remove the text formatted as with three dashes in front and behind
-like:
+**Chosen project: Classification of scientific papers**.
 
-```--- question 1 fill here ---```
+We create a model that can predict the research category of a scientific paper, given only its title and abstract.
 
-Where you instead should add your answers. Any other changes may have unwanted consequences when your report is
-auto-generated at the end of the course. For questions where you are asked to include images, start by adding the image
-to the `figures` subfolder (please only use `.png`, `.jpg` or `.jpeg`) and then add the following code in your answer:
-
-`![my_image](figures/<image>.<extension>)`
-
-In addition to this markdown file, we also provide the `report.py` script that provides two utility functions:
-
-Running:
-
-```bash
-python report.py html
-```
-
-Will generate a `.html` page of your report. After the deadline for answering this template, we will auto-scrape
-everything in this `reports` folder and then use this utility to generate a `.html` page that will be your serve
-as your final hand-in.
-
-Running
-
-```bash
-python report.py check
-```
-
-Will check your answers in this template against the constraints listed for each question e.g. is your answer too
-short, too long, or have you included an image when asked. For both functions to work you mustn't rename anything.
-The script has two dependencies that can be installed with
-
-```bash
-pip install typer markdown
-```
-
-or
-
-```bash
-uv add typer markdown
-```
 
 ## Overall project checklist
-
-The checklist is *exhaustive* which means that it includes everything that you could do on the project included in the
-curriculum in this course. Therefore, we do not expect at all that you have checked all boxes at the end of the project.
-The parenthesis at the end indicates what module the bullet point is related to. Please be honest in your answers, we
-will check the repositories and the code to verify your answers.
-
-**Chosen project**:
-
-3. [Classification of scientific papers](https://github.com/eyhl/group5-pyg-dtu-mlops)
-
-Please note that all the lists are *exhaustive* meaning that I do not expect you to have completed very point on the
-checklist for the exam. The parenthesis at the end indicates what module the bullet point is related to.
 
 ### Week 1
 
@@ -107,10 +57,10 @@ checklist for the exam. The parenthesis at the end indicates what module the bul
 * [ ] Check how robust your model is towards data drifting (M27)
 * [ ] Setup collection of input-output data from your deployed application (M27)
 * [ ] Deploy to the cloud a drift detection API (M27)
-* [ ] Instrument your API with a couple of system metrics (M28)
+* [x] Instrument your API with a couple of system metrics (M28)
 * [ ] Setup cloud monitoring of your instrumented application (M28)
 * [ ] Create one or more alert systems in GCP to alert you if your app is not behaving correctly (M28)
-* [ ] If applicable, optimize the performance of your data loading using distributed data loading (M29)
+* [x] If applicable, optimize the performance of your data loading using distributed data loading (M29)
 * [ ] If applicable, optimize the performance of your training pipeline by using distributed training (M30)
 * [ ] Play around with quantization, compilation and pruning for you trained models to increase inference speed (M31)
 
@@ -118,9 +68,9 @@ checklist for the exam. The parenthesis at the end indicates what module the bul
 
 * [x] Write some documentation for your application (M32)
 * [ ] Publish the documentation to GitHub Pages (M32)
-* [ ] Revisit your initial project description. Did the project turn out as you wanted?
-* [ ] Create an architectural diagram over your MLOps pipeline
-* [ ] Make sure all group members have an understanding about all parts of the project
+* [x] Revisit your initial project description. Did the project turn out as you wanted?
+* [x] Create an architectural diagram over your MLOps pipeline
+* [x] Make sure all group members have an understanding about all parts of the project
 * [x] Uploaded all your code to GitHub
 
 ## Group information
@@ -154,6 +104,8 @@ Group 112
 > *package to do ... and ... in our project*.
 >
 > Answer:
+
+We used the
 
 We used **Loguru** for structured logging with better formatting than Python's built-in logging module. 
 
