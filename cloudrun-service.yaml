@@ -31,6 +31,8 @@ spec:
               value: /gcs/models/best_model.pt
             - name: LABEL_ENCODER_PATH
               value: /gcs/data/processed/label_encoder.json
+            - name: SCIBERT_BASE_PATH
+              value: /gcs/models/scibert_base
             - name: DEVICE
               value: cpu
             - name: TOP_K
