@@ -318,7 +318,13 @@ Example workflow run: https://github.com/nicholaseruplarsen/mlops-02476/actions/
 >
 > Answer:
 
---- question 12 fill here ---
+We used Hydra for configuration management with YAML config files. The base config is `configs/config.yaml` and experiment-specific configs are in `configs/experiment/`. To run an experiment:
+
+```bash
+invoke train --experiment scibert_frozen                         # Use predefined experiment
+invoke train --experiment sentence_transformer --epochs 5        # Override parameters
+uv run python -m arxiv_classifier.train training.batch_size=128  # Direct Hydra override
+```
 
 ### Question 13
 
@@ -333,7 +339,15 @@ Example workflow run: https://github.com/nicholaseruplarsen/mlops-02476/actions/
 >
 > Answer:
 
---- question 13 fill here ---
+We secured reproducibility through multiple mechanisms. 
+
+First, Hydra configuration files define all hyperparameters (learning rate, batch size, epochs, model settings) in version-controlled YAML files, so the exact settings for any experiment can be reconstructed. 
+
+Second, we set a random seed (`training.seed: 42` by default) to ensure deterministic behavior. 
+
+Third, Weights & Biases logs the complete configuration (`OmegaConf.to_container(cfg, resolve=True)`) at the start of each run, creating a permanent record. Fourth, our `uv.lock` file pins exact dependency versions, and DVC pins exact data versions. 
+
+To reproduce an experiment, one would: (1) checkout the specific git commit, (2) run `uv sync` to get exact dependencies, (3) run `dvc pull` to get the exact data version, and (4) run the training command with the same experiment config. W&B provides a comparison interface to verify reproduced results match.
 
 ### Question 14
 
@@ -350,7 +364,11 @@ Example workflow run: https://github.com/nicholaseruplarsen/mlops-02476/actions/
 >
 > Answer:
 
---- question 14 fill here ---
+![W&B Dashboard](figures/wandb.png)
+
+We used Weights & Biases to track our brief experiments. As seen in the screenshot, we track the following metrics per epoch: **train/loss** (cross-entropy loss on training set), **val/loss** (validation loss for early stopping and model selection), **val/accuracy** (classification accuracy on validation set), and **learning_rate** (to monitor the OneCycleLR scheduler). 
+
+These metrics are critical because train/loss shows whether the model is learning, val/loss indicates generalization and helps detect overfitting when it diverges from train/loss, val/accuracy provides an interpretable performance measure, and learning_rate helps debug training issues. At the end of training, we log summary metrics: **best_val_loss** and **best_val_accuracy** to compare across experiments. The full Hydra configuration is logged as a W&B config artifact, enabling complete reproducibility. We can compare different experiments (scibert_frozen, scibert_full, sentence_transformer) side-by-side to see trade-offs between training speed and accuracy.
 
 ### Question 15
 
@@ -470,6 +488,7 @@ We have a lot of builds here because I am also working on another personal proje
 > *was because ...*
 >
 > Answer:
+
 We did not train our model on Google Cloud Engine, because one of our team members has a GTX 3070 which we used to train 2 long runs on the 2 models we have. We ended up using the best one for the API, which was the SciBert model.
 
 
@@ -487,10 +506,10 @@ We did not train our model on Google Cloud Engine, because one of our team membe
 > *to the API to make it more ...*
 >
 > Answer:
-We used FastAPI to setup API testing of our model.  We have used these endpoints: /predict for our paper classifcation model and we have used /metrics for Prometheus
-We used Pydantic to validate request and responses such as making sure that we get inputs in the correct format and output is the correct format.
 
---- question 23 fill here ---
+We used FastAPI to setup API testing of our model.  We have used these endpoints: /predict for our paper classifcation model and we have used /metrics for Prometheus
+
+We used Pydantic to validate request and responses such as making sure that we get inputs in the correct format and output is the correct format.
 
 ### Question 24
 
@@ -505,12 +524,14 @@ We used Pydantic to validate request and responses such as making sure that we g
 > *`curl -X POST -F "file=@file.json"<weburl>`*
 >
 > Answer:
+
 We deployed our API on google cloud provider's run service. This means the container is always ready to recieve requests
 The API can be quried like this:
+```bash
 'curl -X POST https://arxiv-api-pquab3rrka-ew.a.run.app/predict \
     -H "Content-Type: application/json" \
     -d '{"title": "Paper Title", "abstract": "Paper abstract text"}'
--
+```
 
 ### Question 25
 
@@ -588,7 +609,13 @@ Working in the cloud was a valuable learning experience, but also frustrating at
 >
 > Answer:
 
---- question 28 fill here ---
+We implemented several extras beyond the standard requirements:
+
+ **Modal cloud training integration**: Instead of only using GCP, we integrated Modal for serverless GPU training with simple Python decorators, providing an alternative to Vertex AI.
+
+**Multi-hardware support**: Our project supports CPU, NVIDIA CUDA, and AMD ROCm GPUs through optional dependencies in `pyproject.toml`, making it more accessible across different hardware.
+
+**Custom training visualization**: We built a custom progress bar system (`training_output.py`) with real-time GPU monitoring using nvitop, showing GPU utilization, temperature, memory, and power consumption during training.
 
 ### Question 29
 
@@ -605,7 +632,15 @@ Working in the cloud was a valuable learning experience, but also frustrating at
 >
 > Answer:
 
---- question 29 fill here ---
+![Architecture Diagram](figures/architecture.png)
+
+The starting point of our MLOps pipeline is the **local development environment** where developers write code using Python with uv for dependency management and Hydra for configuration. Pre-commit hooks run Ruff for linting before any commit reaches the repository. Code is version-controlled with **Git** and data is version-controlled with **DVC**, which syncs processed datasets to a **GCS bucket** (`gs://arxiv-paper-data-bucket`).
+
+When we commit and push to **GitHub**, it triggers several **GitHub Actions** workflows: the test workflow runs pytest across Ubuntu, Windows, and macOS with Python 3.12, the linting workflow runs Ruff checks, and the Docker build workflow builds container images. Built images are pushed to **GCP Artifact Registry** with both `latest` and git SHA tags.
+
+For model training, we can run locally on GPU (RTX 4070) or use **Modal** for serverless GPU compute; either way, experiments are tracked in **Weights & Biases**, which logs hyperparameters, metrics, and model artifacts. The trained model weights are saved to GCS.
+
+For deployment, the API Docker image is deployed to **GCP Cloud Run**, which mounts the GCS bucket as a volume to access model weights at runtime. Cloud Run exposes our FastAPI service that users query via the `/predict` endpoint. Prometheus metrics are collected and Cloud Monitoring alerts notify us of anomalies. The entire pipeline emphasizes reproducibility through locked dependencies, versioned data, and logged experiments.
 
 ### Question 30
 
@@ -619,7 +654,15 @@ Working in the cloud was a valuable learning experience, but also frustrating at
 >
 > Answer:
 
---- question 30 fill here ---
+The biggest challenge was **deploying the model to Google Cloud Run**. Getting the FastAPI service to work locally was straightforward, but making it run reliably in the cloud required extensive debugging. We encountered memory issues when loading the SciBERT model (fixed by increasing container memory to 4Gi), HuggingFace model caching problems (the container couldn't find cached weights at runtime, requiring us to set `HF_HOME` environment variables and pre-download models during Docker build), and Prometheus metrics path issues. The git history shows 6+ commits just fixing Cloud Run deployment issues.
+
+**GitHub Actions CI/CD setup** also consumed significant time. The cookiecutter template assumed pip, but we used uv for dependency management. We had to rewrite all workflows to use `astral-sh/setup-uv` and adapt the test/lint pipelines accordingly. Getting the Docker build workflow to trigger correctly on the right file changes required multiple iterations.
+
+**GCP IAM permissions and service accounts** were frustrating to configure. Connecting GitHub Actions to GCP for pushing Docker images and pulling DVC data required setting up Workload Identity Federation, which has many moving parts. We resolved this through trial-and-error and consulting GCP documentation.
+
+**Linting compliance** was a recurring minor struggle. Our pre-commit hooks and CI enforced strict Ruff formatting, leading to many "fixed linting errors" commits throughout the project. While annoying, this kept our codebase consistent.
+
+We overcame these challenges by working iteratively, using detailed commit messages to track what we tried, and reviewing each other's PRs to catch issues early.
 
 ### Question 31
 
@@ -637,4 +680,12 @@ Working in the cloud was a valuable learning experience, but also frustrating at
 > *We have used ChatGPT to help debug our code. Additionally, we used GitHub Copilot to help write some of our code.*
 > Answer:
 
---- question 31 fill here ---
+**Student s224175 (Nicholas)** was responsible for the initial project setup using cookiecutter, configuring Hydra for experiment management, integrating Weights & Biases for experiment tracking, and adding Modal as an alternative cloud training platform.
+
+**Student s224183 (Malte)** was responsible for building and deploying the FastAPI inference service to Cloud Run, implementing Prometheus metrics instrumentation, setting up Docker build workflows and triggers, adding load testing with Locust, configuring Cloud Monitoring alerts, and adding PyTorch profiling support with TensorBoard.
+
+**Student s224766 (Frederik)** was responsible for the data pipeline including DVC setup and GCS bucket integration, preprocessing the arXiv dataset, creating dataset visualizations, adapting GitHub Actions workflows from pip to uv, adding ROCm support for AMD GPUs, writing unit tests for data and training, and answering many of the report questions.
+
+All members contributed to code reviews through pull requests, debugging CI failures, and writing documentation.
+
+We used **Claude 4.5 Opus** (partly via the Claude Code CLI) to help with writing boilerplate code, debugging, and for speeding up development generally.
