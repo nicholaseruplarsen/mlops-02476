@@ -17,11 +17,11 @@ spec:
     spec:
       containerConcurrency: 80
       timeoutSeconds: 300
-      serviceAccountName: cloud-run-sa@${PROJECT_ID}.iam.gserviceaccount.com
+      serviceAccountName: cloud-run-sa@chatbot-scraper-811836.iam.gserviceaccount.com
       containers:
         # Main application container
         - name: app
-          image: europe-west1-docker.pkg.dev/${PROJECT_ID}/mlops-repo/arxiv-api:latest
+          image: europe-west1-docker.pkg.dev/chatbot-scraper-811836/mlops-repo/arxiv-api:latest
           ports:
             - containerPort: 8080
           env:
@@ -75,5 +75,5 @@ spec:
             driver: gcsfuse.run.googleapis.com
             readOnly: true
             volumeAttributes:
-              bucketName: ${BUCKET_NAME}
+              bucketName: mlops-arxiv-classifier
               mountOptions: "implicit-dirs"
