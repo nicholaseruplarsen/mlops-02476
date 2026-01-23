@@ -8,12 +8,31 @@ from arxiv_classifier.data import get_num_classes
 from arxiv_classifier.models.base import BaseClassifier
 
 
+def resolve_base_model_path() -> str:
+    """Resolve the base SciBERT model path from env var or default locations."""
+    import os
+    from pathlib import Path
+
+    env_value = os.environ.get("SCIBERT_BASE_PATH")
+    if env_value:
+        return env_value
+
+    # Try GCS mount first (Cloud Run), then local
+    candidates = ["/gcs/models/scibert_base", "models/scibert_base"]
+    for candidate in candidates:
+        if Path(candidate).exists():
+            return candidate
+
+    # Fallback to HuggingFace name for training
+    return "allenai/scibert_scivocab_uncased"
+
+
 class SciBertClassifier(BaseClassifier):
     """SciBERT-based classifier with optional layer freezing.
 
     Args:
         num_classes: Number of output classes. Auto-detected if None.
-        model_name: HuggingFace model name.
+        model_name: Path to local model or HuggingFace model name.
         freeze_layers: Number of transformer layers to freeze (0-12).
             Set to -1 for full fine-tuning (no freezing).
             Set to 8 for top-4 fine-tuning (recommended).
@@ -25,7 +44,7 @@ class SciBertClassifier(BaseClassifier):
     def __init__(
         self,
         num_classes: int | None = None,
-        model_name: str = "allenai/scibert_scivocab_cased",
+        model_name: str | None = None,
         freeze_layers: int = 8,
         dropout: float = 0.1,
         max_length: int = 512,
@@ -34,6 +53,9 @@ class SciBertClassifier(BaseClassifier):
 
         if num_classes is None:
             num_classes = get_num_classes()
+
+        if model_name is None:
+            model_name = resolve_base_model_path()
 
         self.num_classes = num_classes
         self.max_length = max_length
