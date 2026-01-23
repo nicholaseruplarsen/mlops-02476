@@ -36,7 +36,9 @@ uv run dvc push --no-run-cache
 git add data.dvc && git commit -m "Update data" && git push
 ```
 
-For initial development and faster iteration, we subsample to a manageable subset focusing on categories with clear boundaries. The arXiv category taxonomy provides ground truth labels for supervised training without requiring manual annotation.
+For initial development and faster iteration, we subsample to a manageable subset focusing on categories with clear boundaries. The arXiv category taxonomy provides ground truth labels for supervised training without requiring manual annotation. The arXiv category taxonomy can be found here
+
+https://arxiv.org/category_taxonomy
 
 ## Get started
 
@@ -74,15 +76,77 @@ We will use pretrained transformer models for multi-label text classification, w
 
 Our initial approach scales with available compute. The baseline is sentence-transformers to embed abstracts into fixed vectors, followed by a lightweight classifier (logistic regression or small MLP). This requires no GPU for training since embeddings can be precomputed. 
 
-If we need better performance, we can fine-tune DistilBERT (~66M parameters) with a frozen base, updating only the classification head. With access to an RTX 4070 (12GB VRAM), full fine-tuning of DistilBERT or SciBERT on a 50-100k paper subset is realistic and can be done in under an hour per epoch.
+If we need better performance, we can fine-tune sciBERT (~66M parameters) with a frozen base, updating only the classification head, with access to an RTX 4070 (12GB VRAM).
 
 We start with the embedding approach to build out the pipeline, then swap in fine-tuning once the MLOps infrastructure is in place.
 
 ## Focus
 
-The primary focus of this project is the MLOps infrastructure surrounding the model rather than achieving state-of-the-art classification performance. Key components include: version-controlled data pipelines using DVC backed by cloud storage, containerized training and inference environments with Docker, experiment tracking and hyperparameter logging with Weights and Biases, configuration management using Hydra, CI/CD pipelines via GitHub Actions for automated testing and linting, cloud training on GCP Vertex AI, deployment of inference as a FastAPI service on Cloud Run, and monitoring for input data drift in production.
+The primary focus of this project is the MLOps infrastructure surrounding the model rather than achieving state-of-the-art classification performance. Key components include: version-controlled data using DVC and Google cloud storage, containerized training and inference environments with Docker, experiment tracking and hyperparameter logging with Weights and Biases, configuration management using Hydra, CI/CD pipelines via GitHub Actions for automated testing and linting and deployment of inference as a FastAPI service on Cloud Run.
 
 ## Deliverable
 
 The deliverable is a functioning classification API with documented model performance, reproducible training pipeline, and comprehensive MLOps tooling as specified in the course requirements.
 
+## Project Organization
+
+```
+├── .github/workflows/      <- GitHub Actions CI/CD workflows
+│   ├── docker-build.yaml   <- Build and push Docker images to GCP Artifact Registry
+│   ├── linting.yaml        <- Code formatting checks with ruff
+│   ├── pre-commit-update.yaml
+│   └── tests.yaml          <- Run pytest on multiple OS/Python versions
+│
+├── configs/                <- Hydra configuration files
+│   ├── config.yaml         <- Base configuration
+│   └── experiment/         <- Experiment-specific overrides
+│       ├── scibert_frozen.yaml
+│       ├── scibert_full.yaml
+│       └── sentence_transformer.yaml
+│
+├── data/
+│   ├── processed/          <- Preprocessed tensors ready for training
+│   ├── processed.dvc       <- DVC tracking file for processed data
+│   └── raw/                <- Original arXiv metadata
+│
+├── dockerfiles/
+│   ├── api.dockerfile      <- FastAPI inference service
+│   └── train.dockerfile    <- Training environment
+│
+├── docs/                   <- Documentation (mkdocs)
+│   └── source/
+│       ├── cloud_deployment.md
+│       ├── index.md
+│       └── profiling.md
+│
+├── models/                 <- Saved model checkpoints (.pt files)
+│
+├── reports/
+│   └── figures/            <- Generated plots (category distributions, etc.)
+│
+├── src/arxiv_classifier/   <- Source code
+│   ├── api.py              <- FastAPI application for inference
+│   ├── data.py             <- Dataset classes and preprocessing
+│   ├── evaluate.py         <- Model evaluation utilities
+│   ├── model.py            <- Model factory and loading
+│   ├── train.py            <- Training loop with Hydra config
+│   ├── training_output.py  <- Progress bars of GPU stats and logging utilities
+│   ├── visualize.py        <- Visualization scripts
+│   └── models/             <- Model architectures
+│       ├── base.py         <- Abstract base classifier
+│       ├── scibert.py      <- SciBERT fine-tuning model
+│       └── sentence_transformer.py  <- Frozen encoder + MLP head
+│
+├── tests/                  <- Test suite
+│   ├── test_api.py         <- API endpoint tests
+│   ├── test_data.py        <- Data loading tests
+│   ├── test_model.py       <- Model architecture tests
+│   ├── test_train.py       <- Training loop tests
+│   └── locustfile.py       <- Load testing with Locust
+│
+├── .pre-commit-config.yaml <- Pre-commit hooks configuration
+├── cloudbuild.yaml         <- GCP Cloud Build configuration
+├── pyproject.toml          <- Project dependencies and metadata
+├── tasks.py                <- Invoke tasks (train, test, preprocess)
+└── uv.lock                 <- Locked dependencies
+```
