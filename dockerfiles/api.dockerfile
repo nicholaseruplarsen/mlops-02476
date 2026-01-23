@@ -10,6 +10,9 @@ COPY src src/
 
 RUN uv sync --frozen --no-cache
 
+# Set HuggingFace cache directory to persist in the image
+ENV HF_HOME=/app/.cache/huggingface
+
 # Pre-download the SciBERT model to cache it in the image
 RUN uv run python -c "from transformers import AutoTokenizer, AutoModel; AutoTokenizer.from_pretrained('allenai/scibert_scivocab_uncased'); AutoModel.from_pretrained('allenai/scibert_scivocab_uncased')"
 
