@@ -28,6 +28,7 @@ from arxiv_classifier.metrics import (
     ERROR_COUNT,
     INFERENCE_COUNT,
     INFERENCE_TIME,
+    INPUT_TEXT_SIZE,
     MEMORY_USAGE,
     MODEL_INFO,
     REQUEST_COUNT,
@@ -275,6 +276,9 @@ def predict(request: PaperRequest) -> PredictionResponse:
     try:
         # Preprocess: match training format from data.py
         text = f"{request.title} [SEP] {request.abstract}"
+
+        # Record input text size
+        INPUT_TEXT_SIZE.observe(len(text))
 
         # Inference with timing
         inference_start = time.perf_counter()

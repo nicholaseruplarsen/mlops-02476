@@ -3,7 +3,7 @@
 Centralized metric definitions to ensure consistency across the application.
 """
 
-from prometheus_client import Counter, Gauge, Histogram, Info
+from prometheus_client import Counter, Gauge, Histogram, Info, Summary
 
 # Request metrics
 REQUEST_COUNT = Counter(
@@ -30,6 +30,11 @@ INFERENCE_COUNT = Counter(
     "arxiv_api_inference_total",
     "Total number of inference requests",
     ["status"],
+)
+
+INPUT_TEXT_SIZE = Summary(
+    "arxiv_api_input_text_size_chars",
+    "Size of input text (title + abstract) in characters",
 )
 
 # Error metrics
