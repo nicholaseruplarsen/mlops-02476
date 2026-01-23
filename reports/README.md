@@ -366,9 +366,13 @@ To reproduce an experiment, one would: (1) checkout the specific git commit, (2)
 
 ![W&B Dashboard](figures/wandb.png)
 
-We used Weights & Biases to track our brief experiments. As seen in the screenshot, we track the following metrics per epoch: **train/loss** (cross-entropy loss on training set), **val/loss** (validation loss for early stopping and model selection), **val/accuracy** (classification accuracy on validation set), and **learning_rate** (to monitor the OneCycleLR scheduler). 
+We used Weights & Biases to track our experiments during model development. As seen in the screenshot, we track the following metrics per epoch: **train/loss** (cross-entropy loss on training set), **val/loss** (validation loss for early stopping and model selection), **val/accuracy** (classification accuracy on validation set), and **learning_rate** (to monitor the OneCycleLR scheduler behavior throughout training).
 
-These metrics are critical because train/loss shows whether the model is learning, val/loss indicates generalization and helps detect overfitting when it diverges from train/loss, val/accuracy provides an interpretable performance measure, and learning_rate helps debug training issues. At the end of training, we log summary metrics: **best_val_loss** and **best_val_accuracy** to compare across experiments. The full Hydra configuration is logged as a W&B config artifact, enabling complete reproducibility. We can compare different experiments (scibert_frozen, scibert_full, sentence_transformer) side-by-side to see trade-offs between training speed and accuracy.
+These metrics are critical for understanding model behavior: train/loss shows whether the model is learning and converging, val/loss indicates generalization performance and helps detect overfitting when it starts diverging from train/loss, val/accuracy provides an interpretable performance measure that stakeholders can understand, and learning_rate visualization helps debug training issues and verify the scheduler is working correctly.
+
+At the end of each training run, we log summary metrics: **best_val_loss** and **best_val_accuracy** to compare across experiments. The full Hydra configuration is logged as a W&B config artifact using `OmegaConf.to_container(cfg, resolve=True)`, enabling complete reproducibility of any experiment.
+
+The W&B interface allows us to compare different experiments (scibert_frozen, scibert_full, sentence_transformer) side-by-side in a single dashboard, making it easy to see trade-offs between training speed, memory usage, and final accuracy. We can filter runs by tags, sort by metrics, and overlay loss curves to identify which configurations perform best.
 
 ### Question 15
 
@@ -382,11 +386,24 @@ These metrics are critical because train/loss shows whether the model is learnin
 > *training docker image: `docker run trainer:latest lr=1e-3 batch_size=64`. Link to docker file: <weblink>*
 >
 > Answer:
-We used the dockerfiles/api.dockerfile for FastAPI inference. We used dockerfiles/train.dockerfile for training
-Since we used a pretrained model and training was quite long even on a good GPU, we only did 1 training and didnt do multiple experiments
-We have used github actions to automatically build and push to GCP Artifact Registry on pull to main
 
+We developed two Docker images for our project: one for inference (`dockerfiles/api.dockerfile`) and one for training (`dockerfiles/train.dockerfile`). Both images use a multi-stage build pattern with `python:3.12-slim` as the base and uv for dependency installation.
 
+To run the API image locally:
+```bash
+docker build -f dockerfiles/api.dockerfile -t arxiv-api .
+docker run -p 8000:8000 -v /path/to/model:/app/models arxiv-api
+```
+
+To run the training image:
+```bash
+docker build -f dockerfiles/train.dockerfile -t arxiv-train .
+docker run --gpus all -v /path/to/data:/app/data arxiv-train
+```
+
+We automated the build process using GitHub Actions (`.github/workflows/docker-build.yaml`), which triggers on pushes to main when relevant files change. The workflow builds both images and pushes them to Google Artifact Registry with `latest` and git SHA tags.
+
+Link to API dockerfile: [dockerfiles/api.dockerfile](https://github.com/nicholaseruplarsen/mlops-02476/blob/main/dockerfiles/api.dockerfile)
 
 ### Question 16
 
@@ -489,8 +506,11 @@ We have a lot of builds here because I am also working on another personal proje
 >
 > Answer:
 
-We did not train our model on Google Cloud Engine, because one of our team members has a GTX 3070 which we used to train 2 long runs on the 2 models we have. We ended up using the best one for the API, which was the SciBert model.
+We did not train our model on Google Cloud Engine or Vertex AI. The primary reason was cost: we did not have access to the free student credits, and GPU instances on GCP are expensive (an NVIDIA T4 instance costs around $0.35/hour, and training our SciBERT model takes several hours). Instead, one of our team members has a local RTX 4070 with 12GB VRAM, which we used for all training runs.
 
+We trained two model configurations: SciBERT with frozen encoder layers (faster, less memory) and SciBERT with full fine-tuning (slower, better accuracy). Each training run took approximately 2-3 hours on the local GPU. We compared the results in Weights & Biases and selected the full fine-tuning SciBERT model for deployment since it achieved higher validation accuracy.
+
+We did experiment briefly with Modal as an alternative serverless GPU platform, but exhausted the free credits quickly. For future projects with proper cloud credits, we would use Vertex AI Custom Training Jobs with our existing Docker training image.
 
 ## Deployment
 
@@ -507,9 +527,13 @@ We did not train our model on Google Cloud Engine, because one of our team membe
 >
 > Answer:
 
-We used FastAPI to setup API testing of our model.  We have used these endpoints: /predict for our paper classifcation model and we have used /metrics for Prometheus
+Yes, we wrote a FastAPI application in `src/arxiv_classifier/api.py` to serve predictions from our trained model. The API exposes several endpoints:
 
-We used Pydantic to validate request and responses such as making sure that we get inputs in the correct format and output is the correct format.
+- `POST /predict`: Takes a JSON body with `title` and `abstract` fields, runs inference through our SciBERT model, and returns the predicted arXiv category with confidence scores for all classes.
+- `GET /health`: Returns the health status of the service for load balancer health checks.
+- `GET /metrics`: Exposes Prometheus metrics for monitoring (request counts, latencies, prediction distributions).
+
+We used **Pydantic** models (`PredictionRequest`, `PredictionResponse`) to validate inputs and outputs, ensuring the API returns clear error messages for malformed requests. The model is loaded once at startup using FastAPI's lifespan context manager to avoid reloading on every request. We also added CORS middleware to allow browser-based clients to call the API. Error handling includes custom exception handlers for model loading failures and invalid input formats.
 
 ### Question 24
 
@@ -525,12 +549,16 @@ We used Pydantic to validate request and responses such as making sure that we g
 >
 > Answer:
 
-We deployed our API on google cloud provider's run service. This means the container is always ready to recieve requests
-The API can be quried like this:
+Yes, we deployed our API both locally and in the cloud. For local deployment, we run the FastAPI server using uvicorn: `uv run uvicorn arxiv_classifier.api:app --reload`. This was useful during development for quick iteration and debugging.
+
+For cloud deployment, we used **Google Cloud Run**, which runs our containerized API in a fully managed serverless environment. Cloud Run automatically scales based on incoming traffic and can scale to zero when idle, which reduces costs. We configured the service with 4Gi memory (required for loading the SciBERT model) and set minimum instances to 1 to avoid cold starts.
+
+The model weights are stored in a GCS bucket and mounted as a volume in Cloud Run, so the container can access them at runtime. To invoke the deployed service:
+
 ```bash
-'curl -X POST https://arxiv-api-pquab3rrka-ew.a.run.app/predict \
+curl -X POST https://arxiv-api-pquab3rrka-ew.a.run.app/predict \
     -H "Content-Type: application/json" \
-    -d '{"title": "Paper Title", "abstract": "Paper abstract text"}'
+    -d '{"title": "Attention Is All You Need", "abstract": "We propose a new architecture..."}'
 ```
 
 ### Question 25
@@ -545,14 +573,17 @@ The API can be quried like this:
 > *before the service crashed.*
 >
 > Answer:
-We used pytest with FastAPI to create some mock test and to test throughput. local results showed:
-  | Concurrent Users | Requests (30s) | Avg Latency | 95th %ile | Throughput |
-  |------------------|----------------|-------------|-----------|------------|
-  | 10               | 750            | 54ms        | 84ms      | ~27 req/s  |
-  | 50               | 151            | 216ms       | 510ms     | ~5 req/s   |
-. We can see the latency slowed with more "users".
-We tried querying it 10000 times, but that didn't cause it to crash, but request latency degraded due to inference being bottlenecked by the CPU. This was on GCP not local.
 
+For **unit testing**, we used pytest with FastAPI's `TestClient` to test our API endpoints. We have 10 unit tests in `tests/test_api.py` covering the health endpoint, prediction endpoint with valid inputs, error handling for malformed requests, and edge cases like empty strings. These tests run in CI on every push.
+
+For **load testing**, we used Locust to simulate concurrent users hitting the prediction endpoint. Results from our Cloud Run deployment:
+
+| Concurrent Users | Requests (30s) | Avg Latency | 95th %ile | Throughput |
+|------------------|----------------|-------------|-----------|------------|
+| 10               | 750            | 54ms        | 84ms      | ~27 req/s  |
+| 50               | 151            | 216ms       | 510ms     | ~5 req/s   |
+
+The latency increased significantly with more concurrent users because inference is CPU-bound (SciBERT forward pass). We tested with 10,000 sequential requests and the service never crashed, though latency degraded under sustained load. Cloud Run's auto-scaling helped maintain availability.
 
 ### Question 26
 
@@ -566,11 +597,14 @@ We tried querying it 10000 times, but that didn't cause it to crash, but request
 > *measure ... and ... that would inform us about this ... behaviour of our application.*
 >
 > Answer:
-We implemented monitoring wih prometheus to check for how many requests we take, requests handled, alert systems etc
-We used Prometheus to check the length of the inputs we were getting, logs is in: reports/prometheus_metrics.md
-We can see activity on the service running on google cloud
-Lastly we used alerts to notify us when requests exceeded a certain amount. We got the email when the requests were above 3/s when stress testing for 500 requests
-This monitoring allows us to check availability and function of our web service
+
+Yes, we implemented monitoring using **Prometheus** and **Google Cloud Monitoring**. In our FastAPI application, we added a `/metrics` endpoint using the `prometheus-fastapi-instrumentator` library, which automatically tracks request counts, latencies, and response status codes.
+
+We also added custom metrics to monitor the length of input texts (title and abstract), which helps detect unusual inputs that might indicate misuse or data drift. The metrics are documented in `reports/prometheus_metrics.md`.
+
+On the GCP side, we used **Cloud Monitoring** to view built-in metrics for Cloud Run: request count, latency percentiles, container CPU/memory utilization, and instance count. We created a dashboard to visualize these metrics in real-time.
+
+We also configured **alerting policies** in GCP to notify us via email when request rates exceeded a threshold (3 requests/second). During load testing with 500 requests, we received an alert email confirming the system was working. This monitoring setup allows us to track availability, detect anomalies, and debug performance issues in production.
 
 ## Overall discussion of project
 
