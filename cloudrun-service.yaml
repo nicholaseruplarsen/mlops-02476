@@ -37,7 +37,7 @@ spec:
               value: "3"
           resources:
             limits:
-              memory: 2Gi
+              memory: 4Gi
               cpu: "2"
           startupProbe:
             httpGet:
