@@ -248,7 +248,46 @@ uv run locust -f tests/locustfile.py --host http://localhost:8080
 uv run locust -f tests/locustfile.py --headless -u 10 -r 2 -t 30s --host http://localhost:8080
 ```
 
-## Monitoring and Logs
+## Monitoring and Metrics
+
+The API exposes Prometheus metrics at the `/metrics` endpoint for observability.
+
+### Available Metrics
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `arxiv_api_requests_total` | Counter | Total HTTP requests by method/endpoint/status |
+| `arxiv_api_request_latency_seconds` | Histogram | Request duration in seconds |
+| `arxiv_api_inference_seconds` | Histogram | Model inference time |
+| `arxiv_api_inference_total` | Counter | Inference count by status (success/error) |
+| `arxiv_api_errors_total` | Counter | Error count by type |
+| `arxiv_api_cpu_usage_percent` | Gauge | CPU usage percentage |
+| `arxiv_api_memory_usage_bytes` | Gauge | Memory usage in bytes |
+| `arxiv_api_model_info` | Info | Model metadata (type, path, device, classes) |
+
+### Local Metrics Testing
+
+```bash
+# Start the API
+uv run uvicorn arxiv_classifier.api:app --port 8080
+
+# View metrics
+curl http://localhost:8080/metrics
+
+# Make some predictions, then check inference metrics
+curl http://localhost:8080/metrics | grep arxiv_api_inference
+```
+
+### Cloud Run Deployment with Prometheus Sidecar
+
+For production deployments, use the `cloudrun-service.yaml` which includes a Prometheus sidecar that sends metrics to Google Cloud Monitoring:
+
+```bash
+# Deploy with monitoring sidecar
+gcloud run services replace cloudrun-service.yaml --region=europe-west1
+```
+
+The sidecar scrapes the `/metrics` endpoint every 15 seconds and forwards data to Cloud Monitoring where you can create dashboards and alerts.
 
 ### View Logs
 
@@ -270,6 +309,7 @@ Visit the [Cloud Run Console](https://console.cloud.google.com/run) to view:
 - Error rates
 - Instance count
 - Resource utilization
+- Custom Prometheus metrics (via Cloud Monitoring)
 
 ## Troubleshooting
 

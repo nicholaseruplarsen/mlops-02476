@@ -199,3 +199,47 @@ def test_predict_model_not_loaded():
 
     assert response.status_code == 503
     assert "Model not loaded" in response.json()["detail"]
+
+
+def test_metrics_endpoint_exists():
+    """Metrics endpoint returns Prometheus format data."""
+    from arxiv_classifier.api import app
+
+    client = TestClient(app, raise_server_exceptions=False)
+    response = client.get("/metrics")
+
+    assert response.status_code == 200
+    # Check content type is Prometheus format
+    content_type = response.headers.get("content-type", "")
+    assert "text/plain" in content_type or "text/openmetrics" in content_type
+    # Check that some expected metrics are present in response
+    content = response.text
+    assert "arxiv_api" in content or "python_" in content or "process_" in content
+
+
+@patch("arxiv_classifier.api.label_encoder", MOCK_LABEL_ENCODER)
+@patch("arxiv_classifier.api.device", torch.device("cpu"))
+@patch("arxiv_classifier.api.model", create_mock_model())
+def test_predict_records_metrics():
+    """Verify that predictions update inference metrics."""
+    from arxiv_classifier.api import app
+    from arxiv_classifier.metrics import INFERENCE_COUNT
+
+    client = TestClient(app, raise_server_exceptions=False)
+
+    # Get initial metric value
+    initial_success = INFERENCE_COUNT.labels(status="success")._value.get()
+
+    # Make a prediction
+    response = client.post(
+        "/predict",
+        json={
+            "title": "Test Paper",
+            "abstract": "Test abstract for metrics verification.",
+        },
+    )
+    assert response.status_code == 200
+
+    # Check that inference count increased
+    final_success = INFERENCE_COUNT.labels(status="success")._value.get()
+    assert final_success > initial_success

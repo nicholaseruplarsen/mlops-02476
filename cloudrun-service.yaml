@@ -1,0 +1,81 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: arxiv-api
+  labels:
+    cloud.googleapis.com/location: europe-west1
+  annotations:
+    run.googleapis.com/launch-stage: BETA
+spec:
+  template:
+    metadata:
+      annotations:
+        # Enable GCS volume mounts
+        run.googleapis.com/execution-environment: gen2
+        # Enable container dependencies for sidecar
+        run.googleapis.com/container-dependencies: '{"collector":["app"]}'
+    spec:
+      containerConcurrency: 80
+      timeoutSeconds: 300
+      serviceAccountName: 286633827075-compute@developer.gserviceaccount.com
+      containers:
+        # Main application container
+        - name: app
+          image: europe-west1-docker.pkg.dev/chatbot-scraper-811836/mlops-repo/arxiv-api:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: MODEL_TYPE
+              value: scibert
+            - name: MODEL_PATH
+              value: /gcs/models/best_model.pt
+            - name: LABEL_ENCODER_PATH
+              value: /gcs/data/processed/label_encoder.json
+            - name: SCIBERT_BASE_PATH
+              value: /gcs/models/scibert_base
+            - name: DEVICE
+              value: cpu
+            - name: TOP_K
+              value: "3"
+          resources:
+            limits:
+              memory: 4Gi
+              cpu: "2"
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 30
+          volumeMounts:
+            - name: gcs-volume
+              mountPath: /gcs
+              readOnly: true
+
+        # Prometheus sidecar for Google Cloud Monitoring
+        - name: collector
+          image: us-docker.pkg.dev/cloud-ops-agents-artifacts/cloud-run-gmp-sidecar/cloud-run-gmp-sidecar:1.2.0
+          env:
+            - name: PROMETHEUS_SCRAPE_CONFIG
+              value: |
+                scrape_configs:
+                  - job_name: 'arxiv-api'
+                    scrape_interval: 15s
+                    static_configs:
+                      - targets: ['localhost:8080']
+                    metrics_path: /metrics/
+
+      volumes:
+        - name: gcs-volume
+          csi:
+            driver: gcsfuse.run.googleapis.com
+            readOnly: true
+            volumeAttributes:
+              bucketName: mlops-arxiv-classifier
+              mountOptions: "implicit-dirs"
