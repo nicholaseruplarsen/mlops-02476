@@ -17,7 +17,7 @@ spec:
     spec:
       containerConcurrency: 80
       timeoutSeconds: 300
-      serviceAccountName: cloud-run-sa@chatbot-scraper-811836.iam.gserviceaccount.com
+      serviceAccountName: 286633827075-compute@developer.gserviceaccount.com
       containers:
         # Main application container
         - name: app
@@ -67,7 +67,7 @@ spec:
                     scrape_interval: 15s
                     static_configs:
                       - targets: ['localhost:8080']
-                    metrics_path: /metrics
+                    metrics_path: /metrics/
 
       volumes:
         - name: gcs-volume
