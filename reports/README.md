@@ -105,17 +105,13 @@ Group 112
 >
 > Answer:
 
-We used the
+We used several third-party packages not covered in the course:
 
-We used **Loguru** for structured logging with better formatting than Python's built-in logging module.
-
-We used **sentence-transformers** from HuggingFace for pre-trained text embeddings, allowing us to quickly generate embeddings without fine-tuning.
-
-We used **nvitop** for real-time GPU monitoring during training, displaying GPU utilization, temperature, memory, and power consumption in our custom progress bars.
-
-We used **PEFT** (Parameter-Efficient Fine-Tuning) from HuggingFace for potential LoRA-based fine-tuning experiments.
-
-Finally, we experimented **Modal** as an alternative cloud training platform, which provides serverless GPU compute with simple Python decorators for orchestrating remote training jobs, although we ran out of free credits fast ;(.
+- **HuggingFace Transformers** for loading the pre-trained SciBERT model (`allenai/scibert_scivocab_cased`), which we fine-tune for paper classification.
+- **sentence-transformers** for generating text embeddings without fine-tuning, used in our frozen encoder baseline model.
+- **nvitop** for real-time GPU monitoring during training, displaying utilization, temperature, memory, and power consumption in our custom progress bars.
+- **PEFT** (Parameter-Efficient Fine-Tuning) from HuggingFace for potential LoRA-based fine-tuning experiments.
+- **Modal** as an alternative serverless GPU platform for cloud training, though we exhausted the free credits quickly.
 
 ## Coding environment
 
@@ -135,26 +131,20 @@ Finally, we experimented **Modal** as an alternative cloud training platform, wh
 >
 > Answer:
 
-We use **uv** for package management. All dependencies are specified in `pyproject.toml` with exact versions locked in `uv.lock` for reproducibility.
+We use **uv** for dependency management. All dependencies are declared in `pyproject.toml` with exact versions locked in `uv.lock` for reproducibility. We define optional dependency groups for different hardware: `cuda` for NVIDIA GPUs and `rocm` for AMD GPUs on Linux.
 
-We also have individual pytorch support for different hardware setups:. A new team member would first run:
+A new team member would run:
 
 ```bash
 git clone https://github.com/nicholaseruplarsen/mlops-02476
 cd mlops-02476
+uv sync                    # CPU-only PyTorch (default)
+uv sync --extra cuda       # or: NVIDIA GPU support
+uv sync --extra rocm       # or: AMD GPU support (Linux)
+uv run dvc pull --no-run-cache  # pull data from GCS (requires credentials)
 ```
 
-Then one of:
-```bash
-uv sync                         # pytorch-cpu for reduced size
-uv sync --extra cuda            # NVIDIA GPUs
-uv sync --extra rocm            # AMD GPUs on Linux
-```
-Depending on their hardware, and then:
-```bash
-uv run dvc pull --no-run-cache
-```
-To pull data from Google Cloud Storage (GCS) (requires credentials ofc.)
+This gives them an exact replica of our development environment with all pinned dependencies.
 
 ### Question 5
 
@@ -231,7 +221,22 @@ Finally, we have 10 tests in `test_api.py` testing our FastAPI endpoints includi
 >
 > Answer:
 
---- question 8 fill here ---
+Our total code coverage is **35%**. Key modules:
+
+| Module | Coverage |
+|--------|----------|
+| models/base.py | 93% |
+| models/scibert.py | 81% |
+| models/sentence_transformer.py | 74% |
+| api.py | 66% |
+| data.py | 25% |
+| train.py | 18% |
+| visualize.py, modal_train.py | 0% (auxiliary) |
+
+Core modules (model architectures, API) have reasonable coverage. Files like `visualize.py` and `modal_train.py` are auxiliary scripts not critical to the pipeline.
+
+Even with 100% coverage, we couldn't guarantee error-free code. Coverage measures line *execution*, not logical *correctness*. A test could hit the prediction endpoint and check for 200 OK, but assert the wrong category. So coverage would show 100%, yet the bug goes undetected. Coverage also misses edge cases, integration bugs, race conditions, and performance issues. Tests are limited by what we think to test for.
+
 
 ### Question 9
 
@@ -246,7 +251,9 @@ Finally, we have 10 tests in `test_api.py` testing our FastAPI endpoints includi
 >
 > Answer:
 
---- question 9 fill here ---
+Yes, our main branch is protected from direct pushes. Instead, we use feature branches: whenever we implement new functionality, we create a branch with a descriptive name (e.g., `cloud-deployment-api-test`, `dockerbuild-trigger`). We then open pull requests from the specific feature branches, and merging is only allowed when all four GitHub Actions workflows pass: tests, linting, docker-build, and pre-commit-update. PRs also allow team members to review each other's code before merging.
+
+This workflow keeps our commit history clean, ensures branches are scoped to specific features, and guarantees that main always works. We don't break anything when merging because CI has already validated the changes.
 
 ### Question 10
 
@@ -261,7 +268,9 @@ Finally, we have 10 tests in `test_api.py` testing our FastAPI endpoints includi
 >
 > Answer:
 
---- question 10 fill here ---
+Yes, we used DVC to track our preprocessed data (tensors and label encoder), backed by Google Cloud Storage. The raw arXiv data we fetched directly from Kaggle to save space on GCS.
+
+The main benefits we got from DVC were: (1) any team member can run `dvc pull` to get the exact same data without manually managing GCS paths, and (2) our CI pipeline pulls data automatically to run tests. If we had iterated on preprocessing or deployed the model with incoming papers, versioning would also let us reproduce past experiments and monitor data drift. We didn't fully exploit this since our preprocessing was stable throughout the project.
 
 ### Question 11
 
@@ -278,7 +287,19 @@ Finally, we have 10 tests in `test_api.py` testing our FastAPI endpoints includi
 >
 > Answer:
 
---- question 11 fill here ---
+We have four GitHub Actions workflows in `.github/workflows/`:
+
+1. **tests.yaml**: Runs our 28 unit tests with pytest across three operating systems (Ubuntu, Windows, macOS) on Python 3.12. It authenticates to GCP, pulls data via DVC, and enforces a minimum coverage threshold of 20%. We cache the DVC data using `actions/cache@v4` keyed on the hash of `data/processed.dvc`, so unchanged data is not re-downloaded.
+
+2. **linting.yaml**: Runs `ruff check` for linting errors and `ruff format --check` to verify code formatting. This runs on Ubuntu only since linting results are platform-independent. Failing this check blocks PRs from being merged.
+
+3. **docker-build.yaml**: Builds and pushes our API and training Docker images to Google Artifact Registry. This workflow only triggers when relevant files change (`src/**`, `dockerfiles/**`, `pyproject.toml`, `uv.lock`). It uses Docker Buildx with GitHub Actions cache (`cache-from: type=gha`) to speed up builds. Images are tagged with both `latest` and the git SHA.
+
+4. **pre-commit-update.yaml**: Runs daily on a cron schedule to auto-update pre-commit hook versions and opens a PR if updates are available.
+
+All workflows (except pre-commit-update) trigger on pushes and PRs to main. Our branch protection rules ensure PRs cannot be merged until all checks pass, maintaining code quality and stability of the main branch.
+
+Example workflow run: https://github.com/nicholaseruplarsen/mlops-02476/actions/workflows/tests.yaml
 
 ## Running code and tracking experiments
 
@@ -362,7 +383,9 @@ We have used github actions to automatically build and push to GCP Artifact Regi
 >
 > Answer:
 
---- question 16 fill here ---
+For debugging, we primarily used VS Code's built-in debugger with breakpoints to step through code and inspect variables. This was particularly useful when debugging data loading issues and model forward passes. For quick checks, we also used print statements and the loguru logger to trace execution flow.
+
+For profiling, we experimented with two tools: snakeviz for CPU profiling (visualizing cProfile output) and TensorBoard with PyTorch's profiler for analyzing training performance. We documented the TensorBoard setup in `docs/source/profiling.md`. However, the profiling did not lead to any concrete optimizations. Our training bottleneck was simply the transformer model's forward/backward passes, which is expected and not something we could optimize without changing the model architecture. The data loading pipeline was already using multiple workers, pinned memory, and prefetching, so there was no low-hanging fruit there either.
 
 ## Working in the cloud
 
@@ -399,7 +422,9 @@ Ended up wasting a bit of money on the services not letting it idle :D, but didn
 >
 > Answer:
 
---- question 18 fill here ---
+We used Compute Engine briefly to test deploying our API. We spun up a standard VM instance, pulled our Docker image from Artifact Registry, and ran the FastAPI container. It was satisfying to see the API respond to POST requests from our local machines. However, we did not have access to the free student credits, so running a VM continuously was too costly. We ended up spending around 125 DKK on cloud resources for this project.
+
+For the same reason, we did not use Compute Engine (or Vertex AI) for training. Instead, we trained locally on our own hardware (RTX 4070 with 12GB VRAM), which was faster and free. The cloud VM was useful for validating that our containerized deployment worked end-to-end, but we ultimately moved to Cloud Run for the final deployment since it scales to zero and only charges for actual requests.
 
 ### Question 19
 
@@ -543,7 +568,11 @@ This monitoring allows us to check availability and function of our web service
 >
 > Answer:
 
---- question 27 fill here ---
+We spent approximately 125 DKK (~$18 USD) on cloud credits during the project. We did not have access to the free student credits, so we paid out of pocket. The most expensive service was Compute Engine, where we briefly ran a VM to test our API deployment. Keeping a VM running continuously adds up quickly, which is why we moved to Cloud Run for the final deployment (it scales to zero when idle).
+
+Other costs came from Cloud Storage (hosting our DVC data) and Artifact Registry (storing Docker images), but these were relatively cheap since we only stored a few gigabytes.
+
+Working in the cloud was a valuable learning experience, but also frustrating at times. Setting up IAM permissions, service accounts, and connecting all the pieces (Artifact Registry, Cloud Run, GCS buckets) required a lot of trial and error. Once everything was configured, it worked smoothly. The pay-as-you-go model is great for production but makes experimentation feel expensive when you lack free credits.
 
 ### Question 28
 
