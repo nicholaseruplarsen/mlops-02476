@@ -1,4 +1,5 @@
 """Script to trigger alert by sending many requests to the API."""
+
 import requests
 import time
 
@@ -12,9 +13,9 @@ for i in range(50):
             json={"title": f"Test paper {i}", "abstract": "Testing the alerting system."},
             timeout=30,
         )
-        print(f"Request {i+1}: {r.status_code}")
+        print(f"Request {i + 1}: {r.status_code}")
     except Exception as e:
-        print(f"Request {i+1}: Error - {e}")
+        print(f"Request {i + 1}: Error - {e}")
     time.sleep(0.5)
 
 print("\nDone! Check Cloud Monitoring for alerts.")
