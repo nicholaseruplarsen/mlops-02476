@@ -9,15 +9,30 @@ Configure via environment variables:
 - TOP_K: Number of predictions to return (default: 3)
 """
 
+import asyncio
 import json
 import os
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import psutil
 import torch
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Response
+from prometheus_client import make_asgi_app
 from pydantic import BaseModel, Field
+from starlette.middleware.base import BaseHTTPMiddleware
 
+from arxiv_classifier.metrics import (
+    CPU_USAGE,
+    ERROR_COUNT,
+    INFERENCE_COUNT,
+    INFERENCE_TIME,
+    MEMORY_USAGE,
+    MODEL_INFO,
+    REQUEST_COUNT,
+    REQUEST_LATENCY,
+)
 from arxiv_classifier.models import get_model
 
 
@@ -101,6 +116,44 @@ class HealthResponse(BaseModel):
 model = None
 label_encoder = None
 device = None
+_metrics_task = None
+
+
+class MetricsMiddleware(BaseHTTPMiddleware):
+    """Middleware to track request count and latency metrics."""
+
+    async def dispatch(self, request: Request, call_next) -> Response:
+        # Skip metrics for the /metrics endpoint itself
+        if request.url.path == "/metrics":
+            return await call_next(request)
+
+        start_time = time.perf_counter()
+        response = await call_next(request)
+        duration = time.perf_counter() - start_time
+
+        # Record metrics
+        REQUEST_COUNT.labels(
+            method=request.method,
+            endpoint=request.url.path,
+            status_code=response.status_code,
+        ).inc()
+        REQUEST_LATENCY.labels(
+            method=request.method,
+            endpoint=request.url.path,
+        ).observe(duration)
+
+        return response
+
+
+async def collect_system_metrics():
+    """Background task to collect CPU and memory metrics every 15 seconds."""
+    while True:
+        try:
+            CPU_USAGE.set(psutil.cpu_percent())
+            MEMORY_USAGE.set(psutil.Process().memory_info().rss)
+        except Exception:
+            pass  # Ignore errors in metrics collection
+        await asyncio.sleep(15)
 
 
 def load_model_and_encoder() -> tuple:
@@ -140,15 +193,36 @@ def load_model_and_encoder() -> tuple:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Load model at startup, clean up at shutdown."""
-    global model, label_encoder, device
+    global model, label_encoder, device, _metrics_task
     try:
         model, label_encoder, device = load_model_and_encoder()
         print(f"Model loaded successfully on {device}")
+
+        # Record model info metric
+        MODEL_INFO.info(
+            {
+                "model_type": MODEL_TYPE,
+                "model_path": MODEL_PATH,
+                "device": str(device),
+                "num_classes": str(len(label_encoder["label_to_id"])),
+            }
+        )
     except Exception as e:
         print(f"Warning: Failed to load model at startup: {e}")
         print("API will start but /predict will return 503 until model is available")
+
+    # Start background system metrics collection
+    _metrics_task = asyncio.create_task(collect_system_metrics())
+
     yield
-    # Cleanup (if needed)
+
+    # Cleanup
+    if _metrics_task:
+        _metrics_task.cancel()
+        try:
+            await _metrics_task
+        except asyncio.CancelledError:
+            pass
     model = None
     label_encoder = None
 
@@ -159,6 +233,13 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# Add metrics middleware
+app.add_middleware(MetricsMiddleware)
+
+# Mount Prometheus metrics endpoint
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -177,16 +258,24 @@ def health_check() -> HealthResponse:
 def predict(request: PaperRequest) -> PredictionResponse:
     """Classify a paper and return top-k predictions."""
     if model is None or label_encoder is None:
+        INFERENCE_COUNT.labels(status="error").inc()
+        ERROR_COUNT.labels(error_type="model_not_loaded").inc()
         raise HTTPException(status_code=503, detail="Model not loaded")
 
     try:
         # Preprocess: match training format from data.py
         text = f"{request.title} [SEP] {request.abstract}"
 
-        # Inference
+        # Inference with timing
+        inference_start = time.perf_counter()
         with torch.no_grad():
             logits = model([text])
             probabilities = torch.softmax(logits, dim=-1)
+        inference_duration = time.perf_counter() - inference_start
+
+        # Record inference metrics
+        INFERENCE_TIME.observe(inference_duration)
+        INFERENCE_COUNT.labels(status="success").inc()
 
         # Get top-k predictions
         top_k_values, top_k_indices = torch.topk(probabilities[0], k=min(TOP_K, probabilities.shape[1]))
@@ -205,6 +294,8 @@ def predict(request: PaperRequest) -> PredictionResponse:
         )
 
     except Exception as e:
+        INFERENCE_COUNT.labels(status="error").inc()
+        ERROR_COUNT.labels(error_type="inference_failed").inc()
         raise HTTPException(status_code=500, detail=f"Inference failed: {str(e)}")
 
 
