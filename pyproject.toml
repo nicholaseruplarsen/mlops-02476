@@ -54,7 +54,7 @@ dev = [
     "mkdocs==1.6.1",
     "pre-commit==4.5.1",
     "pytest==9.0.2",
-    "ruff==0.14.11",
+    "ruff==0.14.14",
     "mkdocstrings-python==2.0.1",
     "dvc-gs>=3.0.2",
     "pathspec<1.0.0",             # DVC breaks with pathspec v1.0.0 and above
